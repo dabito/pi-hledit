@@ -20,7 +20,7 @@ Registers a single `hledit` tool for pi agents:
 ## Requirements
 
 - `hledit` binary installed and on PATH (or set `HLEDIT_BIN` env var)
-- Install hledit: `go install github.com/dabito/go-hashline-edit@latest`
+- Install hledit: `go install github.com/dabito/hledit@latest`
 
 ## Why hash-anchored editing?
 
