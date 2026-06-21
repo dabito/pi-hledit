@@ -1,0 +1,12 @@
+{
+  "name": "pi-hledit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "typebox": "^1.0.55"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0"
+  }
+}
