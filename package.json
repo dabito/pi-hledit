@@ -1,6 +1,6 @@
 {
   "name": "pi-hledit",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Hashline edit support for Pi: the hledit hash-anchored file editing extension for AI coding agents.",
   "type": "module",
   "main": "index.ts",
@@ -33,8 +33,10 @@
     "access": "public"
   },
   "scripts": {
-    "test": "npm run typecheck",
-    "typecheck": "tsc --noEmit --strict --skipLibCheck index.ts"
+    "test": "npm run typecheck && npm run lint",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --ext .ts",
+    "format": "prettier --write ."
   },
   "dependencies": {
     "typebox": "^1.0.55"
@@ -44,8 +46,12 @@
   },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "^0.79.9",
+    "@eslint/js": "^10.0.1",
     "@types/node": "^22.0.0",
-    "typescript": "^5.0.0"
+    "eslint": "^10.5.0",
+    "prettier": "^3.8.4",
+    "typescript": "^5.0.0",
+    "typescript-eslint": "^8.61.1"
   },
   "engines": {
     "node": ">=18"

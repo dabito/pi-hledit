@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.4] — 2026-06-22
+
+### Changed
+
+- Add committed TypeScript and ESLint verification configs so `npx tsc --noEmit` and `npx eslint . --ext .ts` work from the package root.
+- Type tool and command handler contexts explicitly and validate parsed batch edit JSON through typed guards.
+- Add package scripts for typecheck, lint, and formatting.
+
 ## [1.0.3] — 2026-06-22
 
 ### Changed
