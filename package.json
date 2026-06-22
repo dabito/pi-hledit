@@ -1,6 +1,6 @@
 {
   "name": "pi-hledit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Pi coding agent extension that provides hash-anchored file editing tools.",
   "type": "module",
   "main": "index.ts",
@@ -21,6 +21,7 @@
     "@earendil-works/pi-coding-agent": "^0.79.9"
   },
   "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^0.79.9",
     "@types/node": "^22.0.0"
   },
   "engines": {

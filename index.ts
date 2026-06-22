@@ -8,6 +8,14 @@ import { spawn } from "node:child_process";
 const HLEDIT_BIN =
 	process.env.HLEDIT_BIN || `${process.env.HOME}/.local/bin/hledit`;
 
+const HLEDIT_INSTALL_HINT = `Install the hledit CLI first:
+  go install github.com/dabito/hledit@latest
+
+Then either put it at ~/.local/bin/hledit, add ~/go/bin to PATH, or set:
+  export HLEDIT_BIN="$HOME/go/bin/hledit"
+
+CLI repo: https://github.com/dabito/hledit`;
+
 type HleditRun = {
 	stdout: string;
 	stderr: string;
@@ -35,15 +43,22 @@ async function runHledit(
 		child.stderr.on("data", (chunk) => {
 			stderr += chunk;
 		});
-		child.on("error", () => resolve({ stdout, stderr, exitCode: 1 }));
+		child.on("error", (err) =>
+			resolve({
+				stdout: `failed to run ${HLEDIT_BIN}: ${err.message}\n\n${HLEDIT_INSTALL_HINT}`,
+				stderr,
+				exitCode: 1,
+			}),
+		);
 		child.on("close", (exitCode) => resolve({ stdout, stderr, exitCode }));
 		child.stdin.end(stdin ?? "");
 	});
 }
 
 function textResult(run: HleditRun) {
+	const text = run.stdout.trimEnd() || run.stderr.trimEnd() || HLEDIT_INSTALL_HINT;
 	return {
-		content: [{ type: "text" as const, text: run.stdout.trimEnd() }],
+		content: [{ type: "text" as const, text }],
 		details: { ok: run.exitCode === 0 },
 		isError: run.exitCode !== 0,
 	};
@@ -212,11 +227,12 @@ export default function piHleditExtension(pi: ExtensionAPI) {
 						}
 					}
 				} catch (e) {
+					const message = e instanceof Error ? e.message : String(e);
 					return {
 						content: [
 							{
 								type: "text" as const,
-								text: `invalid JSON in edits param: ${e.message}. Expected: [{"op":"replace","anchor":"5#TX","lines":["new"]}]`,
+								text: `invalid JSON in edits param: ${message}. Expected: [{"op":"replace","anchor":"5#TX","lines":["new"]}]`,
 							},
 						],
 						details: { ok: false },
@@ -247,7 +263,7 @@ export default function piHleditExtension(pi: ExtensionAPI) {
 			if (run.exitCode === 0) {
 				ctx.ui.notify(`hledit ready: ${HLEDIT_BIN}`, "info");
 			} else {
-				ctx.ui.notify(`hledit failed: ${HLEDIT_BIN}`, "error");
+				ctx.ui.notify(`hledit failed: ${HLEDIT_BIN}\n\n${HLEDIT_INSTALL_HINT}`, "error");
 			}
 		},
 	});
