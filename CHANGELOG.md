@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.1] — 2026-06-22
+
+### Changed
+
+- Improve Pi/npm package discoverability for searches like "hashline edit" by adding Hashline-focused description and keywords.
+
 ## [1.0.0] — 2026-06-22
 
 ### Changed

@@ -1,6 +1,6 @@
 # pi-hledit
 
-Pi coding agent extension that provides hash-anchored file editing tools.
+Hashline edit support for Pi: `hledit` hash-anchored file editing tools for AI coding agents.
 
 ## Install
 
@@ -15,7 +15,7 @@ export PATH="$HOME/go/bin:$PATH"
 hledit --version
 
 # 3. Install the Pi extension from the tagged release
-pi install git:github.com/dabito/pi-hledit@v1.0.0
+pi install git:github.com/dabito/pi-hledit@v1.0.1
 ```
 
 Then reload or restart pi:

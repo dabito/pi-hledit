@@ -1,7 +1,7 @@
 {
   "name": "pi-hledit",
-  "version": "1.0.0",
-  "description": "Pi coding agent extension that provides hash-anchored file editing tools.",
+  "version": "1.0.1",
+  "description": "Hashline edit support for Pi: the hledit hash-anchored file editing extension for AI coding agents.",
   "type": "module",
   "main": "index.ts",
   "license": "MIT",
@@ -16,8 +16,12 @@
     "pi-coding-agent",
     "extension",
     "hledit",
+    "hashline",
+    "hashline-edit",
+    "hash-line-edit",
+    "hash-anchored",
     "file-editing",
-    "hash-anchored"
+    "ai-agent"
   ],
   "files": [
     "index.ts",
