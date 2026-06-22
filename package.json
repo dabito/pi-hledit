@@ -1,19 +1,37 @@
 {
   "name": "pi-hledit",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Pi coding agent extension that provides hash-anchored file editing tools.",
   "type": "module",
   "main": "index.ts",
   "license": "MIT",
   "author": "dabito",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dabito/pi-hledit"
+  },
   "keywords": [
+    "pi-package",
     "pi",
+    "pi-coding-agent",
     "extension",
     "hledit",
     "file-editing",
-    "hash-anchored",
-    "pi-package"
+    "hash-anchored"
   ],
+  "files": [
+    "index.ts",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "npm run typecheck",
+    "typecheck": "tsc --noEmit --strict --skipLibCheck index.ts"
+  },
   "dependencies": {
     "typebox": "^1.0.55"
   },
@@ -22,7 +40,8 @@
   },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "^0.79.9",
-    "@types/node": "^22.0.0"
+    "@types/node": "^22.0.0",
+    "typescript": "^5.0.0"
   },
   "engines": {
     "node": ">=18"

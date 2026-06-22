@@ -56,7 +56,8 @@ async function runHledit(
 }
 
 function textResult(run: HleditRun) {
-	const text = run.stdout.trimEnd() || run.stderr.trimEnd() || HLEDIT_INSTALL_HINT;
+	const text =
+		run.stdout.trimEnd() || run.stderr.trimEnd() || HLEDIT_INSTALL_HINT;
 	return {
 		content: [{ type: "text" as const, text }],
 		details: { ok: run.exitCode === 0 },
@@ -263,7 +264,10 @@ export default function piHleditExtension(pi: ExtensionAPI) {
 			if (run.exitCode === 0) {
 				ctx.ui.notify(`hledit ready: ${HLEDIT_BIN}`, "info");
 			} else {
-				ctx.ui.notify(`hledit failed: ${HLEDIT_BIN}\n\n${HLEDIT_INSTALL_HINT}`, "error");
+				ctx.ui.notify(
+					`hledit failed: ${HLEDIT_BIN}\n\n${HLEDIT_INSTALL_HINT}`,
+					"error",
+				);
 			}
 		},
 	});
