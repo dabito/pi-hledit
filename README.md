@@ -10,15 +10,27 @@ Pi coding agent extension that provides hash-anchored file editing tools.
 # 1. Install the hledit CLI
 go install github.com/dabito/hledit@latest
 
-# 2. Make sure the binary is on PATH for pi
+# 2. Make sure the binary is available to pi
 export PATH="$HOME/go/bin:$PATH"
 hledit --version
 
-# 3. Install the Pi extension
-pi install git:github.com/dabito/pi-hledit
+# 3. Install the Pi extension from the tagged release
+pi install git:github.com/dabito/pi-hledit@v0.1.3
 ```
 
-By default the extension looks for `~/.local/bin/hledit`. If your Go install puts it somewhere else, either add that directory to `PATH` or set `HLEDIT_BIN`:
+Then reload or restart pi:
+
+```text
+/reload
+```
+
+Verify the extension can find the CLI:
+
+```text
+/hledit-status
+```
+
+By default the extension looks for `~/.local/bin/hledit`. If your Go install puts it somewhere else, either keep `$HOME/go/bin` on `PATH` for pi or set `HLEDIT_BIN` before starting pi:
 
 ```bash
 export HLEDIT_BIN="$HOME/go/bin/hledit"

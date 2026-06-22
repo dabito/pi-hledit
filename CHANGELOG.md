@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.3] — 2026-06-22
+
+### Changed
+
+- Clarify end-user install flow with pinned Pi package tag, `/reload`, and `/hledit-status` verification.
+
 ## [0.1.2] — 2026-06-22
 
 ### Changed
