@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.3] — 2026-06-22
+
+### Changed
+
+- Update install docs to pin `hledit` CLI v1.0.2, which restores the `-` content-source contract and improves content-source error messages.
+
 ## [1.0.2] — 2026-06-22
 
 ### Changed

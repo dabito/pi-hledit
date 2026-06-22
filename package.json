@@ -1,6 +1,6 @@
 {
   "name": "pi-hledit",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Hashline edit support for Pi: the hledit hash-anchored file editing extension for AI coding agents.",
   "type": "module",
   "main": "index.ts",
