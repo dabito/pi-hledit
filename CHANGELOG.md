@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.2] — 2026-06-22
+
+### Changed
+
+- Update install docs to pin `hledit` CLI v1.0.1, which fixes empty-string replacement/deletion from the CLI.
+
 ## [1.0.1] — 2026-06-22
 
 ### Changed
