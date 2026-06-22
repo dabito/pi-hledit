@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.0] — 2026-06-22
+
+### Changed
+
+- Promote `pi-hledit` to stable 1.0.0 package release.
+- Align install docs with stable `hledit` CLI v1.0.0 and `pi-hledit` v1.0.0 tags.
+
 ## [0.1.3] — 2026-06-22
 
 ### Changed

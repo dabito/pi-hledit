@@ -8,14 +8,14 @@ Pi coding agent extension that provides hash-anchored file editing tools.
 
 ```bash
 # 1. Install the hledit CLI
-go install github.com/dabito/hledit@latest
+go install github.com/dabito/hledit@v1.0.0
 
 # 2. Make sure the binary is available to pi
 export PATH="$HOME/go/bin:$PATH"
 hledit --version
 
 # 3. Install the Pi extension from the tagged release
-pi install git:github.com/dabito/pi-hledit@v0.1.3
+pi install git:github.com/dabito/pi-hledit@v1.0.0
 ```
 
 Then reload or restart pi:
