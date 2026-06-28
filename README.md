@@ -31,7 +31,7 @@ export HLEDIT_BIN="$HOME/go/bin/hledit"
 ### Alternative: install from git
 
 ```bash
-pi install git:github.com/dabito/pi-hledit@v1.0.4
+pi install git:github.com/dabito/pi-hledit
 ```
 
 ### Verify
