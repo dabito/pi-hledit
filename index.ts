@@ -11,7 +11,7 @@ const HLEDIT_BIN =
   process.env.HLEDIT_BIN || `${process.env.HOME}/.local/bin/hledit`;
 
 const HLEDIT_INSTALL_HINT = `Install the hledit CLI first:
-  go install github.com/dabito/hledit@v1.0.2
+  go install github.com/dabito/hledit@latest
 
 Then either put it at ~/.local/bin/hledit, add ~/go/bin to PATH, or set:
   export HLEDIT_BIN="$HOME/go/bin/hledit"

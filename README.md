@@ -19,7 +19,7 @@ Then reload or restart pi:
 - [hledit CLI](https://github.com/dabito/hledit) — install the CLI first:
 
 ```bash
-go install github.com/dabito/hledit@v1.0.2
+go install github.com/dabito/hledit@latest
 ```
 
 Make sure the binary is on your `PATH` or set `HLEDIT_BIN`:

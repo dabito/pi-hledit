@@ -1,6 +1,10 @@
 # Changelog
 
-## [1.0.4] — 2026-06-22
+## [Unreleased]
+
+### Changed
+
+- Use `go install github.com/dabito/hledit@latest` in install docs and missing-CLI hints instead of pinning an older CLI tag.
 
 ### Changed
 
