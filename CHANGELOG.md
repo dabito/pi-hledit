@@ -2,9 +2,25 @@
 
 ## [Unreleased]
 
+## [1.0.7] — 2026-07-01
+
+### Fixed
+
+- Translate wrapper-friendly batch `edits` arrays with `anchor`/`end_anchor` into `hledit batch` CLI requests with `pos`/`end_pos`.
+- Add explicit edit `action` support for `replace`, `insert`, `delete`, and `replace-range`, including insert-before and insert-after.
+- Resolve `hledit` from `PATH` by default via `HLEDIT_BIN || "hledit"`.
+
+### Added
+
+- Add host-facing contract tests for registration, arg building, batch translation, and spawned CLI stdin.
+- Add README parameter table, canonical examples, and package `bugs`/`homepage` metadata.
+
 ### Changed
 
 - Use `go install github.com/dabito/hledit@latest` in install docs and missing-CLI hints instead of pinning an older CLI tag.
+- Keep validation errors concise and move long examples into README.
+
+## [1.0.6] — 2026-06-30
 
 ### Changed
 

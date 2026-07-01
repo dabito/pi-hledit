@@ -21,6 +21,6 @@ export default [
     },
   },
   {
-    ignores: ["node_modules/**", "*.tgz"],
+    ignores: ["node_modules/**", ".tmp-tests/**", "*.tgz"],
   },
 ];

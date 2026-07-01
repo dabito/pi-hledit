@@ -1,6 +1,6 @@
 {
   "name": "pi-hledit",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Hashline edit support for Pi: the hledit hash-anchored file editing extension for AI coding agents.",
   "type": "module",
   "main": "index.ts",
@@ -10,6 +10,10 @@
     "type": "git",
     "url": "https://github.com/dabito/pi-hledit"
   },
+  "bugs": {
+    "url": "https://github.com/dabito/pi-hledit/issues"
+  },
+  "homepage": "https://github.com/dabito/pi-hledit#readme",
   "keywords": [
     "pi-package",
     "pi",
@@ -25,6 +29,10 @@
   ],
   "files": [
     "index.ts",
+    "test",
+    "tsconfig.json",
+    "tsconfig.contract.json",
+    "eslint.config.js",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"
@@ -33,7 +41,8 @@
     "access": "public"
   },
   "scripts": {
-    "test": "npm run typecheck && npm run lint",
+    "test": "npm run typecheck && npm run contract && npm run lint",
+    "contract": "rm -rf .tmp-tests && tsc -p tsconfig.contract.json && node --test .tmp-tests/test/*.test.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write ."
