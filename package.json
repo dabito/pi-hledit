@@ -1,6 +1,6 @@
 {
   "name": "pi-hledit",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Hashline edit support for Pi: the hledit hash-anchored file editing extension for AI coding agents.",
   "type": "module",
   "main": "index.ts",
@@ -8,7 +8,7 @@
   "author": "dabito",
   "repository": {
     "type": "git",
-    "url": "https://github.com/dabito/pi-hledit"
+    "url": "git+https://github.com/dabito/pi-hledit.git"
   },
   "bugs": {
     "url": "https://github.com/dabito/pi-hledit/issues"
