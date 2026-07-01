@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Improve batch `edits` JSON parse error message to mention escaping control characters (`\\t`, `\\n`) and suggest `op:'edit'` fallback.
+
 ## [1.0.7] — 2026-07-01
 
 ### Fixed

@@ -139,6 +139,24 @@ test("rejects unsupported batch insert-after", () => {
   });
 });
 
+test("batch edits with literal control chars give actionable error", () => {
+  // Simulates a model generating JSON with a literal tab in a string value.
+  const malformed = `{"edits":[{"op":"replace","anchor":"4#VJ","lines":["\treturn"]}]}`;
+  const translation = translateBatchEdits(malformed);
+
+  assert.equal(translation.ok, false);
+  if (!translation.ok) {
+    assert.ok(
+      translation.error.includes("Escape control characters"),
+      `error should mention escaping: ${translation.error}`,
+    );
+    assert.ok(
+      translation.error.includes("op:'edit'"),
+      `error should suggest op:'edit' fallback: ${translation.error}`,
+    );
+  }
+});
+
 test("registered batch tool sends CLI-native JSON to hledit", async () => {
   const dir = await mkdtemp(join(tmpdir(), "pi-hledit-test-"));
   const fakeBin = join(dir, "hledit-fake.mjs");

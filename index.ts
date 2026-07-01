@@ -259,7 +259,10 @@ export function translateBatchEdits(editsJson: string): BatchTranslationResult {
     parsed = JSON.parse(editsJson) as unknown;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return { ok: false, error: `invalid JSON in edits param: ${message}` };
+    return {
+      ok: false,
+      error: `invalid JSON in edits param: ${message}. Escape control characters: use \\t for tabs, \\n for newlines. Each line in the 'lines' array must be a separate string element. Or use op:'edit' for single changes.`,
+    };
   }
 
   if (!Array.isArray(parsed)) {
