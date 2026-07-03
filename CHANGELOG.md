@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.9] — 2026-07-01
+
+### Changed
+
+- Render `hledit` tool calls/results with compact Pi TUI visuals matching built-in tool styling.
+- Fold long read output with `nf-oct-fold`, colored as accent, while preserving full tool payload.
+- Summarize edit and batch successes/errors with Nerd Font glyphs and concise changed-line ranges.
+
 ## [1.0.8] — 2026-07-01
 
 ### Fixed

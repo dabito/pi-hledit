@@ -21,9 +21,29 @@ type ToolResult = {
   isError?: boolean;
 };
 
+type RenderComponent = {
+  render(width: number): string[];
+};
+
+type ThemeStub = {
+  fg: (name: string, text: string) => string;
+  bold: (text: string) => string;
+};
+
 type RegisteredTool = {
   name: string;
   parameters: unknown;
+  renderCall?: (
+    args: Record<string, unknown>,
+    theme: ThemeStub,
+    context: Record<string, unknown>,
+  ) => RenderComponent;
+  renderResult?: (
+    result: ToolResult,
+    options: { expanded: boolean; isPartial: boolean },
+    theme: ThemeStub,
+    context: { args?: Record<string, unknown> },
+  ) => RenderComponent;
   execute: (
     toolCallId: string,
     params: Record<string, unknown>,
@@ -157,12 +177,12 @@ test("batch edits with literal control chars give actionable error", () => {
   }
 });
 
-test("registered batch tool sends CLI-native JSON to hledit", async () => {
+test("registered batch tool returns human-readable summary", async () => {
   const dir = await mkdtemp(join(tmpdir(), "pi-hledit-test-"));
   const fakeBin = join(dir, "hledit-fake.mjs");
   await writeFile(
     fakeBin,
-    `#!/usr/bin/env node\nimport { readFileSync } from 'node:fs';\nconst stdin = readFileSync(0, 'utf8');\nconsole.log(JSON.stringify({ argv: process.argv.slice(2), stdin }));\n`,
+    `#!/usr/bin/env node\nconsole.log(JSON.stringify({ ok: true, firstChangedLine: 12, lastChangedLine: 18, editsApplied: 1 }))\n`,
     { mode: 0o755 },
   );
 
@@ -184,13 +204,23 @@ test("registered batch tool sends CLI-native JSON to hledit", async () => {
       undefined,
       ctx,
     );
-    const payload = JSON.parse(result.content[0]?.text ?? "{}");
 
     assert.equal(result.details.ok, true);
-    assert.deepEqual(payload, {
-      argv: ["batch", "file.ts"],
-      stdin: JSON.stringify({ edits: [{ op: "replace", pos: "1#AB", lines: ["x"] }] }),
-    });
+    assert.match(result.content[0]?.text ?? "", /Batch ok\./);
+    assert.match(result.content[0]?.text ?? "", /Edits applied: 1/);
+    assert.match(result.content[0]?.text ?? "", /Changed lines: 12-18/);
+    const batchRendered = tool.renderResult?.(
+      result,
+      { expanded: true, isPartial: false },
+      {
+        fg: (name, text) => `<${name}>${text}</${name}>`,
+        bold: (text) => `**${text}**`,
+      },
+      { args: { op: "batch" } },
+    );
+    assert.deepEqual(batchRendered?.render(80), [
+      "<accent>󰄭</accent> Batch ok. Edits applied: 1. Changed lines: 12-18.",
+    ]);
   } finally {
     if (oldBin === undefined) {
       delete process.env.HLEDIT_BIN;
@@ -198,4 +228,101 @@ test("registered batch tool sends CLI-native JSON to hledit", async () => {
       process.env.HLEDIT_BIN = oldBin;
     }
   }
+});
+
+
+test("registered edit tool returns human-readable summary", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "pi-hledit-test-"));
+  const fakeBin = join(dir, "hledit-fake.mjs");
+  await writeFile(
+    fakeBin,
+    `#!/usr/bin/env node\nconsole.log(JSON.stringify({ ok: true, firstChangedLine: 1, lastChangedLine: 1 }))\n`,
+    { mode: 0o755 },
+  );
+
+  const oldBin = process.env.HLEDIT_BIN;
+  process.env.HLEDIT_BIN = fakeBin;
+  try {
+    const { tools } = registerExtension();
+    const tool = tools[0];
+    assert.ok(tool);
+    const ctx = { cwd: dir, signal: undefined } as unknown as ExtensionContext;
+    const result = await tool.execute(
+      "call-1",
+      {
+        op: "edit",
+        path: "file.ts",
+        action: "replace",
+        anchor: "1#AB",
+        content: "x",
+      },
+      undefined,
+      undefined,
+      ctx,
+    );
+
+    assert.equal(result.details.ok, true);
+    const editRendered = tool.renderResult?.(
+      result,
+      { expanded: true, isPartial: false },
+      {
+        fg: (name, text) => `<${name}>${text}</${name}>`,
+        bold: (text) => `**${text}**`,
+      },
+      { args: { op: "edit" } },
+    );
+    assert.deepEqual(editRendered?.render(80), [
+      "<success>󰄬</success> Edit ok. Changed line: 1",
+    ]);
+  } finally {
+    if (oldBin === undefined) {
+      delete process.env.HLEDIT_BIN;
+    } else {
+      process.env.HLEDIT_BIN = oldBin;
+    }
+  }
+});
+
+test("renderResult folds long read output", () => {
+  const { tools } = registerExtension();
+  const tool = tools[0];
+  assert.ok(tool?.renderResult);
+  assert.ok(tool?.renderCall);
+  const call = tool.renderCall(
+    { op: "read", path: "test/contract.test.ts", offset: 300, limit: 18 },
+    {
+      fg: (name, text) => `<${name}>${text}</${name}>`,
+      bold: (text) => `**${text}**`,
+    },
+    {},
+  );
+  assert.deepEqual(call.render(120), [
+    "<toolTitle>**hledit read:**</toolTitle> <accent>test/contract.test.ts</accent><warning>:300-317</warning>",
+  ]);
+
+  const rendered = tool.renderResult(
+    {
+      content: [
+        {
+          type: "text",
+          text: Array.from({ length: 24 }, (_, i) => `line ${i + 1}`).join("\n"),
+        },
+      ],
+      details: { ok: true },
+      isError: false,
+    },
+    { expanded: true, isPartial: false },
+    {
+      fg: (name, text) => `<${name}>${text}</${name}>`,
+      bold: (text) => `**${text}**`,
+    },
+    { args: { op: "read" } },
+  );
+
+  assert.deepEqual(rendered.render(80), [
+    "<accent></accent> Read folded: 24 lines",
+    "line 1",
+    "... (22 lines) ...",
+    "line 24",
+  ]);
 });

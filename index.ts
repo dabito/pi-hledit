@@ -145,9 +145,208 @@ async function runHledit(
   });
 }
 
-function textResult(run: HleditRun) {
-  const text =
-    run.stdout.trimEnd() || run.stderr.trimEnd() || HLEDIT_INSTALL_HINT;
+function parseJsonObject(text: string): Record<string, unknown> | null {
+  try {
+    const parsed = JSON.parse(text) as unknown;
+    return isRecord(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function formatBatchResult(result: Record<string, unknown>): string {
+  const lines: string[] = [];
+  const ok = result.ok !== false;
+
+  if (ok) {
+    lines.push(result.checked === true ? "Batch check ok." : "Batch ok.");
+
+    if (typeof result.editsApplied === "number") {
+      lines.push(`Edits applied: ${result.editsApplied}`);
+    }
+
+    const firstChangedLine = result.firstChangedLine;
+    const lastChangedLine = result.lastChangedLine;
+    if (
+      typeof firstChangedLine === "number" &&
+      typeof lastChangedLine === "number"
+    ) {
+      lines.push(`Changed lines: ${firstChangedLine}-${lastChangedLine}`);
+    } else if (typeof firstChangedLine === "number") {
+      lines.push(`First changed line: ${firstChangedLine}`);
+    } else if (typeof lastChangedLine === "number") {
+      lines.push(`Last changed line: ${lastChangedLine}`);
+    }
+
+    return lines.join("\n");
+  }
+
+  lines.push("Batch failed.");
+  if (typeof result.error === "string") {
+    lines.push(`Error: ${result.error}`);
+  }
+  if (typeof result.message === "string" && result.message !== result.error) {
+    lines.push(`Message: ${result.message}`);
+  }
+  if (typeof result.failed === "number") {
+    lines.push(`Failed edit: ${result.failed}`);
+  }
+
+  if (Array.isArray(result.remaps) && result.remaps.length > 0) {
+    lines.push("Remaps:");
+    for (const remap of result.remaps) {
+      if (!isRecord(remap)) continue;
+      const requested =
+        typeof remap.Requested === "string"
+          ? remap.Requested
+          : typeof remap.requested === "string"
+            ? remap.requested
+            : undefined;
+      const current =
+        typeof remap.Current === "string"
+          ? remap.Current
+          : typeof remap.current === "string"
+            ? remap.current
+            : undefined;
+      if (requested && current) {
+        lines.push(`- ${requested} -> ${current}`);
+      } else if (requested) {
+        lines.push(`- ${requested}`);
+      }
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function formatRunText(
+  run: HleditRun,
+  kind: HleditParams["op"] | undefined,
+): string {
+  const text = run.stdout.trimEnd() || run.stderr.trimEnd();
+
+  if (run.exitCode !== 0) {
+    return text || HLEDIT_INSTALL_HINT;
+  }
+
+  if (!text) {
+    if (kind === "batch") {
+      return "Batch ok.";
+    }
+    if (kind === "edit") {
+      return "Edit ok.";
+    }
+    if (kind === "read") {
+      return "Read ok.";
+    }
+    return "Done.";
+  }
+
+  const parsed = parseJsonObject(text);
+  if (!parsed) {
+    return text;
+  }
+
+  if ("editsApplied" in parsed || "failed" in parsed || "message" in parsed) {
+    return formatBatchResult(parsed);
+  }
+
+  return text;
+}
+
+type RenderComponent = {
+  render(width: number): string[];
+  invalidate(): void;
+};
+
+function truncateLine(line: string, width: number): string {
+  if (width <= 0) {
+    return "";
+  }
+  if (line.length <= width) {
+    return line;
+  }
+  if (width === 1) {
+    return "…";
+  }
+  return `${line.slice(0, width - 1)}…`;
+}
+
+function makeComponent(lines: string[]): RenderComponent {
+  return {
+    render(width: number) {
+      return lines.map((line) => truncateLine(line, width));
+    },
+    invalidate() {},
+  };
+}
+
+function lineFromAnchor(anchor: unknown): number | undefined {
+  if (typeof anchor !== "string") {
+    return undefined;
+  }
+  const match = anchor.match(/^(\d+)#/);
+  return match ? Number(match[1]) : undefined;
+}
+
+function formatLineRange(first: number | undefined, last: number | undefined): string | undefined {
+  if (first === undefined && last === undefined) {
+    return undefined;
+  }
+  const start = first ?? last;
+  const end = last ?? first;
+  return start === end ? String(start) : `${start}-${end}`;
+}
+
+function batchLineRange(editsJson: unknown): string | undefined {
+  if (typeof editsJson !== "string") {
+    return undefined;
+  }
+
+  const parsed = parseJsonObject(`{"edits":${editsJson}}`);
+  const edits = Array.isArray(parsed?.edits) ? parsed.edits : undefined;
+  if (!edits) {
+    return undefined;
+  }
+
+  const lines = edits
+    .filter(isRecord)
+    .flatMap((edit) => [lineFromAnchor(edit.anchor), lineFromAnchor(edit.end_anchor)])
+    .filter((line): line is number => line !== undefined);
+  if (lines.length === 0) {
+    return undefined;
+  }
+
+  return formatLineRange(Math.min(...lines), Math.max(...lines));
+}
+
+function changedLineSummary(parsed: Record<string, unknown>): string | undefined {
+  const firstChangedLine = parsed.firstChangedLine;
+  const lastChangedLine = parsed.lastChangedLine;
+  if (typeof firstChangedLine !== "number" && typeof lastChangedLine !== "number") {
+    return undefined;
+  }
+
+  const range = formatLineRange(
+    typeof firstChangedLine === "number" ? firstChangedLine : undefined,
+    typeof lastChangedLine === "number" ? lastChangedLine : undefined,
+  );
+  return range?.includes("-") ? `Changed lines: ${range}` : `Changed line: ${range}`;
+}
+
+function foldedErrorLine(text: string): string {
+  const lines = text.split(/\r?\n/).filter(Boolean);
+  const first = lines[0] ?? "Failed.";
+  const error = lines.find((line) => line.startsWith("Error:"));
+  if (error) {
+    return `${first} ${error.replace(/^Error:\s*/, "")}`;
+  }
+  return first;
+}
+
+
+function textResult(run: HleditRun, kind: HleditParams["op"] | undefined) {
+  const text = formatRunText(run, kind);
   return {
     content: [{ type: "text" as const, text }],
     details: { ok: run.exitCode === 0 },
@@ -353,6 +552,106 @@ export default function piHleditExtension(pi: ExtensionAPI) {
       "If edit returns stale, re-read the file to get fresh anchors before retrying.",
       "Use grep param to filter lines and reduce token usage: {op:'read', path, grep:'func '}",
     ],
+    renderCall(args, theme) {
+      const input = isRecord(args) ? (args as Record<string, unknown>) : {};
+      const op = typeof input.op === "string" ? input.op : "hledit";
+      const path = typeof input.path === "string" ? input.path : undefined;
+      const offset = typeof input.offset === "number" && input.offset > 0 ? input.offset : undefined;
+      const limit = typeof input.limit === "number" && input.limit > 0 ? input.limit : undefined;
+      const anchorLine = lineFromAnchor(input.anchor);
+      const endLine = lineFromAnchor(input.end_anchor);
+      const batchRange = batchLineRange(input.edits);
+      const range =
+        op === "read"
+          ? formatLineRange(offset ?? 1, (offset ?? 1) + (limit ?? 2000) - 1)
+          : op === "edit"
+            ? formatLineRange(anchorLine, endLine ?? anchorLine)
+            : op === "batch"
+              ? batchRange
+              : undefined;
+      const title = theme.fg("toolTitle", theme.bold(`hledit ${op}:`));
+      const targetText = path
+        ? theme.fg("accent", path) + (range ? theme.fg("warning", `:${range}`) : "")
+        : "";
+
+      return makeComponent([targetText ? `${title} ${targetText}` : title]);
+    },
+    renderResult(result, _options, theme, context) {
+      const input = isRecord(context.args)
+        ? (context.args as Record<string, unknown>)
+        : {};
+      const op = typeof input.op === "string" ? input.op : undefined;
+      const first = Array.isArray(result.content)
+        ? (result.content[0] as { text?: unknown } | undefined)
+        : undefined;
+      const text = typeof first?.text === "string" ? first.text : "";
+      const details = isRecord(result.details)
+        ? (result.details as Record<string, unknown>)
+        : {};
+      const failureText =
+        text.startsWith("Batch failed.") ||
+        text.startsWith("Error:") ||
+        text.startsWith("invalid ") ||
+        text.startsWith("Edit failed.") ||
+        text.startsWith("Read failed.");
+      const isError =
+        (result as { isError?: boolean }).isError === true ||
+        details.ok === false ||
+        failureText;
+      const lines = text ? text.split(/\r?\n/) : [];
+      const warningIcon = theme.fg("warning", "");
+      const foldIcon = theme.fg("accent", "");
+
+      if (isError) {
+        return makeComponent([`${warningIcon} ${foldedErrorLine(text)}`]);
+      }
+
+      if (op === "read" && lines.length > 20) {
+        return makeComponent([
+          `${foldIcon} Read folded: ${lines.length} lines`,
+          lines[0] ?? "",
+          `... (${lines.length - 2} lines) ...`,
+          lines[lines.length - 1] ?? "",
+        ]);
+      }
+
+      if (op === "read") {
+        return makeComponent(lines.length > 0 ? lines : ["Read ok."]);
+      }
+
+      const parsed = parseJsonObject(text);
+      if (op === "edit" && parsed) {
+        const changed = changedLineSummary(parsed);
+        const icon = theme.fg("success", "󰄬");
+        return makeComponent([`${icon} Edit ok.${changed ? ` ${changed}` : ""}`]);
+      }
+
+      if (op === "batch") {
+        if (parsed) {
+          const changed = changedLineSummary(parsed);
+          const editsApplied = parsed.editsApplied;
+          const bits = ["Batch ok."];
+          if (typeof editsApplied === "number") {
+            bits.push(`Edits applied: ${editsApplied}.`);
+          }
+          if (changed) {
+            bits.push(changed);
+          }
+          return makeComponent([`${theme.fg("accent", "󰄭")} ${bits.join(" ")}`]);
+        }
+
+        const compact = lines
+          .filter(Boolean)
+          .map((line) => (line.endsWith(".") ? line : `${line}.`))
+          .join(" ");
+        return makeComponent([`${theme.fg("accent", "󰄭")} ${compact || "Batch ok."}`]);
+      }
+
+      const icon = theme.fg("success", "󰄬");
+      const outputLines = lines.length > 0 ? [...lines] : [text || "Done."];
+      outputLines[0] = `${icon} ${outputLines[0]}`;
+      return makeComponent(outputLines);
+    },
     parameters: HLEDIT_PARAMS_SCHEMA,
     async execute(
       _toolCallId: string,
@@ -364,7 +663,10 @@ export default function piHleditExtension(pi: ExtensionAPI) {
       const { op, path } = params;
 
       if (op === "read") {
-        return textResult(await runHledit(buildReadArgs(params), undefined, ctx, signal));
+        return textResult(
+          await runHledit(buildReadArgs(params), undefined, ctx, signal),
+          op,
+        );
       }
 
       if (op === "edit") {
@@ -374,6 +676,7 @@ export default function piHleditExtension(pi: ExtensionAPI) {
         }
         return textResult(
           await runHledit(request.args, request.stdin, ctx, signal),
+          op,
         );
       }
 
@@ -390,6 +693,7 @@ export default function piHleditExtension(pi: ExtensionAPI) {
 
         return textResult(
           await runHledit(["batch", path], translation.json, ctx, signal),
+          op,
         );
       }
 
