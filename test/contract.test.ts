@@ -336,7 +336,7 @@ test("renderResult folds long read output", () => {
   );
 
   assert.deepEqual(rendered.render(80), [
-    "<accent></accent> Read folded: 24 lines",
+    "<accent>󰋽</accent> Read folded: 24 lines",
     "line 1",
     "... (22 lines) ...",
     "line 24",

@@ -26,7 +26,7 @@ type BatchOp = (typeof BATCH_OPS)[number];
 const VISUAL = {
   success: { fallback: "✓", nerd: "󰄬", theme: "success" },
   warning: { fallback: "◐", nerd: "", theme: "warning" },
-  info: { fallback: "•", nerd: "", theme: "accent" },
+  info: { fallback: "•", nerd: "󰋽", nerdCodepoint: "f02fd", theme: "accent" },
 } as const;
 
 type VisualState = keyof typeof VISUAL;

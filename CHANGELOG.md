@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.11] — 2026-07-02
+
+### Changed
+
+- Use Nerd Font codepoint `f02fd` for info/folded-read visual state.
+
 ## [1.0.10] — 2026-07-01
 
 ### Changed
