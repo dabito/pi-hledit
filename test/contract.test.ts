@@ -106,7 +106,14 @@ test("resolves hledit from PATH by default", () => {
 });
 
 test("builds read args with default range limit", () => {
-  assert.deepEqual(buildReadArgs({ op: "read", path: "a.ts" }), ["read", "a.ts"]);
+  assert.deepEqual(buildReadArgs({ op: "read", path: "a.ts" }), [
+    "read-range",
+    "a.ts",
+    "--offset",
+    "1",
+    "--limit",
+    "2000",
+  ]);
   assert.deepEqual(buildReadArgs({ op: "read", path: "a.ts", grep: "func" }), [
     "read-range",
     "a.ts",

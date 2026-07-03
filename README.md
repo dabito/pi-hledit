@@ -2,21 +2,23 @@
 
 Hashline edit support for Pi: `hledit` hash-anchored file editing tools for AI coding agents.
 
+`pi-hledit` is a thin wrapper — it registers a single pi tool that shells out to the [`hledit`](https://github.com/dabito/hledit) CLI. All edit-safety behavior described below lives in `hledit` itself.
+
+## Demo
+
+![hledit stale-edit demo](https://raw.githubusercontent.com/dabito/hledit/main/docs/demo/hledit.gif)
+
+Demo of the underlying `hledit` CLI (not this wrapper): `hledit read` producing `LN#ANCHOR` references, a stale edit rejected with `{"ok":false,"error":"stale"}`, then a successful edit after re-reading a fresh anchor. Source: [`hledit`'s README](https://github.com/dabito/hledit#demo).
+
+## Related packages
+
+- [`hledit`](https://github.com/dabito/hledit) — the standalone Go CLI this extension wraps. Usable directly without Pi.
+
 ## Install
-
-```bash
-pi install npm:pi-hledit
-```
-
-Then reload or restart pi:
-
-```text
-/reload
-```
 
 ### Requirements
 
-- [hledit CLI](https://github.com/dabito/hledit) — install the CLI first:
+- Go toolchain and the [hledit CLI](https://github.com/dabito/hledit) — install it first:
 
 ```bash
 go install github.com/dabito/hledit@latest
@@ -26,6 +28,18 @@ Make sure `hledit` is on `PATH` for pi, or set `HLEDIT_BIN`:
 
 ```bash
 export HLEDIT_BIN="$HOME/go/bin/hledit"
+```
+
+Then install the pi extension:
+
+```bash
+pi install npm:pi-hledit
+```
+
+Then reload or restart pi:
+
+```text
+/reload
 ```
 
 ### Alternative: install from git
@@ -115,8 +129,33 @@ Batch edits use wrapper-friendly fields. `pi-hledit` translates them to the CLI-
 }
 ```
 
-Batch insert is insert-before only because the current `hledit batch` CLI has no insert-after field.
-
 ## Why hash-anchored editing?
 
-Traditional text-matching edits fail silently when the file changes between read and write. Hash anchors detect stale context before any write, preventing silent corruption.
+Traditional text-matching edits fail silently when the file changes between read and write. Hash anchors detect stale context before any write, and reject stale writes before they happen — the agent gets an error and can re-read, instead of silently patching the wrong line.
+
+## Behavior notes
+
+- Plain `{op:'read'}` (no `offset`/`limit`/`grep`) is bounded: it defaults to `offset:1`, `limit:2000`, same as an explicit ranged read.
+- `grep` filters which lines are returned but the result is still line-capped by `limit`, not byte-capped — a match set larger than `limit` is truncated with a pagination hint from `hledit`, not silently dropped.
+- `action:'delete'` sends empty content (empty stdin) to `hledit`; there is no separate delete-specific field.
+- Batch insert is insert-before only — the current `hledit batch` CLI has no insert-after field.
+
+## Failure modes
+
+- **Stale anchor** — the target line changed since the anchor's `read`. The edit is rejected with an error instead of writing to the wrong line; re-read and retry with a fresh anchor.
+- **Malformed batch JSON** — the `edits` string fails to parse; the tool returns an actionable error naming the expected shape rather than spawning `hledit`.
+- **hledit not found** — if `HLEDIT_BIN`/`PATH` don't resolve to the CLI, the tool returns the install hint (`go install github.com/dabito/hledit@latest`).
+
+## Limitations
+
+- This wrapper does not expose `hledit`'s `--context` flag; only `offset`, `limit`, and `grep` are exposed for reads.
+- Batch edits are applied by a single `hledit batch` invocation (validate-all-then-write), not by this wrapper independently — atomicity guarantees come from the CLI, not from pi-hledit's own code.
+- No sandboxing beyond what `hledit` itself does: paths are resolved relative to pi's cwd and passed through to the CLI as-is.
+
+## Development
+
+```bash
+npm test   # typecheck, contract tests, lint
+```
+
+Contract tests live in `test/contract.test.ts` and cover read-arg building, edit action resolution, batch translation, and the registered tool's rendering.

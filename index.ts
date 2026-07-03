@@ -391,11 +391,6 @@ export function buildReadArgs(params: HleditParams): string[] {
   const offset = toNum(params.offset);
   const limit = toNum(params.limit);
   const grep = params.grep || undefined;
-  const hasRange = offset !== undefined || limit !== undefined || grep !== undefined;
-
-  if (!hasRange) {
-    return ["read", params.path];
-  }
 
   const args = [
     "read-range",

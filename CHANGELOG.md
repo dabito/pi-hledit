@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.12] — 2026-07-02
+
+### Changed
+
+- Plain `{op:'read'}` (no `offset`/`limit`/`grep`) now always builds a bounded `read-range` request (`offset:1`, `limit:2000`) instead of an unbounded `hledit read`. Behavior is unchanged for files under the default limit; large files are now explicitly capped by the wrapper itself instead of relying on `hledit`'s own internal default.
+- README: added Demo, Related packages, Behavior notes, Failure modes, Limitations, and Development sections; moved the Go-toolchain requirement ahead of the npm install step; softened the "preventing silent corruption" claim to describe the actual reject-and-retry behavior.
+
 ## [1.0.11] — 2026-07-02
 
 ### Changed
