@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -296,6 +296,59 @@ test("registered edit tool returns human-readable summary", async () => {
     );
     assert.deepEqual(editRendered?.render(80), [
       "<success>󰄬</success> Edit ok. Changed line: 1",
+    ]);
+  } finally {
+    if (oldBin === undefined) {
+      delete process.env.HLEDIT_BIN;
+    } else {
+      process.env.HLEDIT_BIN = oldBin;
+    }
+  }
+});
+
+test("registered read tool returns annotated lines and calls read-range", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "pi-hledit-test-"));
+  const fakeBin = join(dir, "hledit-fake.mjs");
+  const argsLog = join(dir, "args.json");
+  await writeFile(
+    fakeBin,
+    `#!/usr/bin/env node
+import { writeFileSync } from "node:fs";
+writeFileSync(${JSON.stringify(argsLog)}, JSON.stringify(process.argv.slice(2)));
+console.log("1#AB:const ok = true;\\n2#CD:console.log(ok);");
+`,
+    { mode: 0o755 },
+  );
+
+  const oldBin = process.env.HLEDIT_BIN;
+  process.env.HLEDIT_BIN = fakeBin;
+  try {
+    const { tools } = registerExtension();
+    const tool = tools[0];
+    assert.ok(tool);
+    const ctx = { cwd: dir, signal: undefined } as unknown as ExtensionContext;
+    const result = await tool.execute(
+      "call-1",
+      { op: "read", path: "file.ts" },
+      undefined,
+      undefined,
+      ctx,
+    );
+
+    assert.equal(result.details.ok, true);
+    assert.equal(
+      result.content[0]?.text,
+      "1#AB:const ok = true;\n2#CD:console.log(ok);",
+    );
+
+    const calledArgs = JSON.parse(await readFile(argsLog, "utf8"));
+    assert.deepEqual(calledArgs, [
+      "read-range",
+      "file.ts",
+      "--offset",
+      "1",
+      "--limit",
+      "2000",
     ]);
   } finally {
     if (oldBin === undefined) {
