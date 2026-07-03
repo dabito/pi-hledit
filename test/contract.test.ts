@@ -84,6 +84,22 @@ test("registers hledit tool and status command", () => {
   assert.ok(commands.has("hledit-status"));
 });
 
+test("schema exposes finite op and action unions", () => {
+  const { tools } = registerExtension();
+  const params = tools[0]?.parameters as {
+    properties?: Record<string, { anyOf?: Array<{ const?: string }> }>;
+  };
+
+  assert.deepEqual(
+    params.properties?.op?.anyOf?.map((entry) => entry.const),
+    ["read", "edit", "batch"],
+  );
+  assert.deepEqual(
+    params.properties?.action?.anyOf?.map((entry) => entry.const),
+    ["replace", "insert", "delete", "replace-range"],
+  );
+});
+
 test("resolves hledit from PATH by default", () => {
   assert.equal(resolveHleditBin({}), "hledit");
   assert.equal(resolveHleditBin({ HLEDIT_BIN: "/tmp/hledit" }), "/tmp/hledit");
@@ -219,7 +235,7 @@ test("registered batch tool returns human-readable summary", async () => {
       { args: { op: "batch" } },
     );
     assert.deepEqual(batchRendered?.render(80), [
-      "<accent>󰄭</accent> Batch ok. Edits applied: 1. Changed lines: 12-18.",
+      "<success>󰄬</success> Batch ok. Edits applied: 1. Changed lines: 12-18.",
     ]);
   } finally {
     if (oldBin === undefined) {

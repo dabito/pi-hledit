@@ -23,8 +23,25 @@ const BATCH_OPS = ["replace", "delete", "insert"] as const;
 export type EditAction = (typeof EDIT_ACTIONS)[number];
 type BatchOp = (typeof BATCH_OPS)[number];
 
+const VISUAL = {
+  success: { fallback: "✓", nerd: "󰄬", theme: "success" },
+  warning: { fallback: "◐", nerd: "", theme: "warning" },
+  info: { fallback: "•", nerd: "", theme: "accent" },
+} as const;
+
+type VisualState = keyof typeof VISUAL;
+
+type ThemeLike = {
+  fg: (name: never, text: string) => string;
+};
+
+function stateIcon(theme: ThemeLike, state: VisualState): string {
+  const visual = VISUAL[state];
+  return theme.fg(visual.theme as never, visual.nerd);
+}
+
 const HLEDIT_PARAMS_SCHEMA = Type.Object({
-  op: Type.String({
+  op: Type.Union([Type.Literal("read"), Type.Literal("edit"), Type.Literal("batch")], {
     description: "Operation: 'read', 'edit', or 'batch'",
   }),
   path: Type.String({ description: "File path" }),
@@ -38,10 +55,18 @@ const HLEDIT_PARAMS_SCHEMA = Type.Object({
   ),
   // Edit params
   action: Type.Optional(
-    Type.String({
-      description:
-        "Edit action: replace, insert, delete, or replace-range. Defaults to replace unless end_anchor or after imply legacy behavior.",
-    }),
+    Type.Union(
+      [
+        Type.Literal("replace"),
+        Type.Literal("insert"),
+        Type.Literal("delete"),
+        Type.Literal("replace-range"),
+      ],
+      {
+        description:
+          "Edit action: replace, insert, delete, or replace-range. Defaults to replace unless end_anchor or after imply legacy behavior.",
+      },
+    ),
   ),
   anchor: Type.Optional(
     Type.String({ description: "LN#HASH anchor, e.g. 12#NK" }),
@@ -599,8 +624,9 @@ export default function piHleditExtension(pi: ExtensionAPI) {
         details.ok === false ||
         failureText;
       const lines = text ? text.split(/\r?\n/) : [];
-      const warningIcon = theme.fg("warning", "");
-      const foldIcon = theme.fg("accent", "");
+      const warningIcon = stateIcon(theme, "warning");
+      const infoIcon = stateIcon(theme, "info");
+      const successIcon = stateIcon(theme, "success");
 
       if (isError) {
         return makeComponent([`${warningIcon} ${foldedErrorLine(text)}`]);
@@ -608,7 +634,7 @@ export default function piHleditExtension(pi: ExtensionAPI) {
 
       if (op === "read" && lines.length > 20) {
         return makeComponent([
-          `${foldIcon} Read folded: ${lines.length} lines`,
+          `${infoIcon} Read folded: ${lines.length} lines`,
           lines[0] ?? "",
           `... (${lines.length - 2} lines) ...`,
           lines[lines.length - 1] ?? "",
@@ -622,8 +648,9 @@ export default function piHleditExtension(pi: ExtensionAPI) {
       const parsed = parseJsonObject(text);
       if (op === "edit" && parsed) {
         const changed = changedLineSummary(parsed);
-        const icon = theme.fg("success", "󰄬");
-        return makeComponent([`${icon} Edit ok.${changed ? ` ${changed}` : ""}`]);
+        return makeComponent([
+          `${successIcon} Edit ok.${changed ? ` ${changed}` : ""}`,
+        ]);
       }
 
       if (op === "batch") {
@@ -637,19 +664,18 @@ export default function piHleditExtension(pi: ExtensionAPI) {
           if (changed) {
             bits.push(changed);
           }
-          return makeComponent([`${theme.fg("accent", "󰄭")} ${bits.join(" ")}`]);
+          return makeComponent([`${successIcon} ${bits.join(" ")}`]);
         }
 
         const compact = lines
           .filter(Boolean)
           .map((line) => (line.endsWith(".") ? line : `${line}.`))
           .join(" ");
-        return makeComponent([`${theme.fg("accent", "󰄭")} ${compact || "Batch ok."}`]);
+        return makeComponent([`${successIcon} ${compact || "Batch ok."}`]);
       }
 
-      const icon = theme.fg("success", "󰄬");
       const outputLines = lines.length > 0 ? [...lines] : [text || "Done."];
-      outputLines[0] = `${icon} ${outputLines[0]}`;
+      outputLines[0] = `${successIcon} ${outputLines[0]}`;
       return makeComponent(outputLines);
     },
     parameters: HLEDIT_PARAMS_SCHEMA,

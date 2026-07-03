@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.10] — 2026-07-01
+
+### Changed
+
+- Standardize Pi TUI visual rendering behind named semantic state constants and helpers.
+- Use one semantic success icon/color for edit and batch summaries.
+- Tighten `op` and `action` schemas to literal unions for better host introspection.
+
 ## [1.0.9] — 2026-07-01
 
 ### Changed
