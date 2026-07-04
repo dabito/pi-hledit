@@ -53,6 +53,7 @@
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@earendil-works/pi-tui": "^0.79.9",
     "typebox": "^1.0.55"
   },
   "peerDependencies": {

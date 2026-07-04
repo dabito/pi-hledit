@@ -402,3 +402,44 @@ test("renderResult folds long read output", () => {
     "line 24",
   ]);
 });
+
+// Tabs render wider than their string length, so a length-based truncation
+// can undercount and let an over-wide line through — this is the exact bug
+// that crashed a real session (pi-crash.log: "Rendered line exceeds terminal
+// width"). Sweep a range of widths against tab-heavy lines and assert the
+// invariant holds everywhere (measured with pi-tui's own visibleWidth, the
+// same function that re-measures this output when pi actually renders it),
+// not just at one width a targeted regression test happened to pick.
+test("renderResult truncation never exceeds the requested width, even with tabs", async () => {
+  const { visibleWidth } = await import("@earendil-works/pi-tui");
+  const { tools } = registerExtension();
+  const tool = tools[0];
+  assert.ok(tool?.renderResult);
+
+  const tabHeavyLines = [
+    "196#VY:\t\tnotice := fmt.Sprintf(\"-- %d more matches, use offset %d --\", remaining, lastLn+1)",
+    "\t\t\t\t\t\t\t\tdeeply nested",
+    "no tabs at all, just a very long line of plain ascii text to force truncation somewhere",
+    "",
+  ];
+
+  const rendered = tool.renderResult(
+    {
+      content: [{ type: "text", text: tabHeavyLines.join("\n") }],
+      details: { ok: true },
+      isError: false,
+    },
+    { expanded: true, isPartial: false },
+    { fg: (name: string, text: string) => text, bold: (text: string) => text },
+    { args: { op: "read" } },
+  );
+
+  for (let width = 0; width <= 120; width++) {
+    for (const line of rendered.render(width)) {
+      assert.ok(
+        visibleWidth(line) <= width,
+        `render(${width}) produced a line of visual width ${visibleWidth(line)}: ${JSON.stringify(line)}`,
+      );
+    }
+  }
+});

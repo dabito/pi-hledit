@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.14] — 2026-07-03
+
+### Fixed
+
+- Read-output truncation now delegates to `@earendil-works/pi-tui`'s own width measurement instead of a local length-based reimplementation, fixing a crash ("Rendered line exceeds terminal width") on tab-heavy lines where visual width diverges from string length.
+
 ## [1.0.12] — 2026-07-02
 
 ### Changed

@@ -4,6 +4,7 @@ import type {
   ExtensionCommandContext,
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
+import { truncateToWidth } from "@earendil-works/pi-tui";
 import { spawn } from "node:child_process";
 import { Type, type Static } from "typebox";
 
@@ -284,17 +285,14 @@ type RenderComponent = {
   invalidate(): void;
 };
 
+// Delegates to pi-tui's own width measurement (tabs, ANSI, wide/emoji
+// graphemes) instead of a local reimplementation. hledit read output embeds
+// raw source tabs and this component's output is what pi-tui re-measures
+// when it renders, so anything short of the real implementation can drift
+// and let an over-wide line through (see pi-crash.log: "Rendered line
+// exceeds terminal width" — the bug this replaced).
 function truncateLine(line: string, width: number): string {
-  if (width <= 0) {
-    return "";
-  }
-  if (line.length <= width) {
-    return line;
-  }
-  if (width === 1) {
-    return "…";
-  }
-  return `${line.slice(0, width - 1)}…`;
+  return truncateToWidth(line, width, "…");
 }
 
 function makeComponent(lines: string[]): RenderComponent {
