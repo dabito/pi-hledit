@@ -205,7 +205,7 @@ test("registered batch tool returns human-readable summary", async () => {
   const fakeBin = join(dir, "hledit-fake.mjs");
   await writeFile(
     fakeBin,
-    `#!/usr/bin/env node\nconsole.log(JSON.stringify({ ok: true, firstChangedLine: 12, lastChangedLine: 18, editsApplied: 1 }))\n`,
+    `#!/usr/bin/env node\nconsole.log(JSON.stringify({ ok: true, firstChangedLine: 12, lastChangedLine: 18, linesAdded: 3, linesDeleted: 2, editsApplied: 1 }))\n`,
     { mode: 0o755 },
   );
 
@@ -232,6 +232,7 @@ test("registered batch tool returns human-readable summary", async () => {
     assert.match(result.content[0]?.text ?? "", /Batch ok\./);
     assert.match(result.content[0]?.text ?? "", /Edits applied: 1/);
     assert.match(result.content[0]?.text ?? "", /Changed lines: 12-18/);
+    assert.match(result.content[0]?.text ?? "", /Lines: \+3 -2/);
     const batchRendered = tool.renderResult?.(
       result,
       { expanded: true, isPartial: false },
@@ -241,8 +242,8 @@ test("registered batch tool returns human-readable summary", async () => {
       },
       { args: { op: "batch" } },
     );
-    assert.deepEqual(batchRendered?.render(80), [
-      "<success>󰄬</success> Batch ok. Edits applied: 1. Changed lines: 12-18.",
+    assert.deepEqual(batchRendered?.render(120), [
+      "<success>󰄬</success> Batch ok. Edits applied: 1. Changed lines: 12-18. Lines: +3 -2.",
     ]);
   } finally {
     if (oldBin === undefined) {
@@ -259,7 +260,7 @@ test("registered edit tool returns human-readable summary", async () => {
   const fakeBin = join(dir, "hledit-fake.mjs");
   await writeFile(
     fakeBin,
-    `#!/usr/bin/env node\nconsole.log(JSON.stringify({ ok: true, firstChangedLine: 1, lastChangedLine: 1 }))\n`,
+    `#!/usr/bin/env node\nconsole.log(JSON.stringify({ ok: true, firstChangedLine: 1, lastChangedLine: 1, linesAdded: 2, linesDeleted: 1 }))\n`,
     { mode: 0o755 },
   );
 
@@ -295,7 +296,7 @@ test("registered edit tool returns human-readable summary", async () => {
       { args: { op: "edit" } },
     );
     assert.deepEqual(editRendered?.render(80), [
-      "<success>󰄬</success> Edit ok. Changed line: 1",
+      "<success>󰄬</success> Edit ok. Changed line: 1 Lines: +2 -1",
     ]);
   } finally {
     if (oldBin === undefined) {

@@ -204,6 +204,11 @@ function formatBatchResult(result: Record<string, unknown>): string {
       lines.push(`Last changed line: ${lastChangedLine}`);
     }
 
+    const lineDelta = lineDeltaSummary(result);
+    if (lineDelta) {
+      lines.push(lineDelta);
+    }
+
     return lines.join("\n");
   }
 
@@ -355,6 +360,17 @@ function changedLineSummary(parsed: Record<string, unknown>): string | undefined
     typeof lastChangedLine === "number" ? lastChangedLine : undefined,
   );
   return range?.includes("-") ? `Changed lines: ${range}` : `Changed line: ${range}`;
+}
+
+function lineDeltaSummary(parsed: Record<string, unknown>): string | undefined {
+  const linesAdded = parsed.linesAdded;
+  const linesDeleted = parsed.linesDeleted;
+  if (typeof linesAdded !== "number" && typeof linesDeleted !== "number") {
+    return undefined;
+  }
+  const added = typeof linesAdded === "number" ? linesAdded : 0;
+  const deleted = typeof linesDeleted === "number" ? linesDeleted : 0;
+  return `Lines: +${added} -${deleted}`;
 }
 
 function foldedErrorLine(text: string): string {
@@ -641,21 +657,26 @@ export default function piHleditExtension(pi: ExtensionAPI) {
       const parsed = parseJsonObject(text);
       if (op === "edit" && parsed) {
         const changed = changedLineSummary(parsed);
+        const lineDelta = lineDeltaSummary(parsed);
         return makeComponent([
-          `${successIcon} Edit ok.${changed ? ` ${changed}` : ""}`,
+          `${successIcon} Edit ok.${changed ? ` ${changed}` : ""}${lineDelta ? ` ${lineDelta}` : ""}`,
         ]);
       }
 
       if (op === "batch") {
         if (parsed) {
           const changed = changedLineSummary(parsed);
+          const lineDelta = lineDeltaSummary(parsed);
           const editsApplied = parsed.editsApplied;
           const bits = ["Batch ok."];
           if (typeof editsApplied === "number") {
             bits.push(`Edits applied: ${editsApplied}.`);
           }
           if (changed) {
-            bits.push(changed);
+            bits.push(changed.endsWith(".") ? changed : `${changed}.`);
+          }
+          if (lineDelta) {
+            bits.push(lineDelta.endsWith(".") ? lineDelta : `${lineDelta}.`);
           }
           return makeComponent([`${successIcon} ${bits.join(" ")}`]);
         }

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.15] — 2026-07-07
+
+### Changed
+
+- Show `Lines: +N -M` in edit and batch success summaries when `hledit` reports `linesAdded` and `linesDeleted`.
+
 ## [1.0.14] — 2026-07-03
 
 ### Fixed
