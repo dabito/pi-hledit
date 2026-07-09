@@ -5,6 +5,8 @@ import type {
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, type Component } from "@earendil-works/pi-tui";
+import { readFile } from "node:fs/promises";
+import { resolve as resolvePath } from "node:path";
 import { spawn } from "node:child_process";
 import { Type, type Static } from "typebox";
 
@@ -118,6 +120,27 @@ type HleditRun = {
   stderr: string;
   exitCode: number | null;
 };
+type DiffLineKind = "context" | "added" | "removed" | "omitted";
+
+type DiffLine = {
+  kind: DiffLineKind;
+  text: string;
+};
+
+type HleditDiff = {
+  lines: DiffLine[];
+};
+
+type ChangeMetadata = {
+  firstChangedLine: number;
+  lastChangedLine: number;
+  linesAdded: number;
+  linesDeleted: number;
+};
+
+const DIFF_CONTEXT_LINES = 2;
+const MAX_DIFF_LINES = 80;
+const MAX_DIFF_CELL_COUNT = 40_000;
 
 type CliBatchEdit = {
   op: BatchOp;
@@ -200,6 +223,140 @@ function parseJsonObject(text: string): Record<string, unknown> | null {
   } catch {
     return null;
   }
+}
+async function readTextSnapshot(filePath: string, ctx: ExtensionContext): Promise<string | undefined> {
+  try {
+    const text = await readFile(resolvePath(ctx.cwd, filePath), "utf8");
+    return text.includes("\0") ? undefined : text;
+  } catch {
+    return undefined;
+  }
+}
+
+function splitSnapshotLines(text: string): string[] {
+  const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+  if (lines[lines.length - 1] === "") {
+    lines.pop();
+  }
+  return lines;
+}
+
+function changeMetadata(run: HleditRun): ChangeMetadata | undefined {
+  if (run.exitCode !== 0) {
+    return undefined;
+  }
+  const parsed = parseJsonObject(run.stdout.trimEnd());
+  if (!parsed) {
+    return undefined;
+  }
+  const { firstChangedLine, lastChangedLine, linesAdded, linesDeleted } = parsed;
+  if (
+    typeof firstChangedLine !== "number" ||
+    typeof lastChangedLine !== "number" ||
+    typeof linesAdded !== "number" ||
+    typeof linesDeleted !== "number"
+  ) {
+    return undefined;
+  }
+  return { firstChangedLine, lastChangedLine, linesAdded, linesDeleted };
+}
+
+function lcsDiff(oldLines: string[], newLines: string[]): DiffLine[] {
+  if (oldLines.length * newLines.length > MAX_DIFF_CELL_COUNT) {
+    return [
+      {
+        kind: "omitted",
+        text: `... diff omitted: changed window too large (${oldLines.length} old lines, ${newLines.length} new lines) ...`,
+      },
+    ];
+  }
+
+  const dp = Array.from({ length: oldLines.length + 1 }, () =>
+    Array<number>(newLines.length + 1).fill(0),
+  );
+  for (let i = oldLines.length - 1; i >= 0; i--) {
+    for (let j = newLines.length - 1; j >= 0; j--) {
+      dp[i]![j] = oldLines[i] === newLines[j]
+        ? dp[i + 1]![j + 1]! + 1
+        : Math.max(dp[i + 1]![j]!, dp[i]![j + 1]!);
+    }
+  }
+
+  const diff: DiffLine[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < oldLines.length && j < newLines.length) {
+    if (oldLines[i] === newLines[j]) {
+      diff.push({ kind: "context", text: oldLines[i]! });
+      i++;
+      j++;
+    } else if (dp[i + 1]![j]! >= dp[i]![j + 1]!) {
+      diff.push({ kind: "removed", text: oldLines[i]! });
+      i++;
+    } else {
+      diff.push({ kind: "added", text: newLines[j]! });
+      j++;
+    }
+  }
+  while (i < oldLines.length) {
+    diff.push({ kind: "removed", text: oldLines[i]! });
+    i++;
+  }
+  while (j < newLines.length) {
+    diff.push({ kind: "added", text: newLines[j]! });
+    j++;
+  }
+  return diff;
+}
+
+function capDiffLines(lines: DiffLine[]): DiffLine[] {
+  if (lines.length <= MAX_DIFF_LINES) {
+    return lines;
+  }
+  const headCount = Math.floor(MAX_DIFF_LINES / 2);
+  const tailCount = MAX_DIFF_LINES - headCount;
+  return [
+    ...lines.slice(0, headCount),
+    { kind: "omitted", text: `... (${lines.length - MAX_DIFF_LINES} diff lines omitted) ...` },
+    ...lines.slice(lines.length - tailCount),
+  ];
+}
+
+function buildDiff(beforeText: string, afterText: string, metadata: ChangeMetadata): HleditDiff | undefined {
+  const beforeLines = splitSnapshotLines(beforeText);
+  const afterLines = splitSnapshotLines(afterText);
+  const first = Math.max(1, metadata.firstChangedLine);
+  const last = Math.max(first, metadata.lastChangedLine);
+  const netLineDelta = metadata.linesAdded - metadata.linesDeleted;
+  const oldStart = Math.max(1, first - DIFF_CONTEXT_LINES);
+  const oldEnd = Math.min(beforeLines.length, last + DIFF_CONTEXT_LINES);
+  const newStart = Math.max(1, first - DIFF_CONTEXT_LINES);
+  const newEnd = Math.min(afterLines.length, Math.max(first, last + netLineDelta) + DIFF_CONTEXT_LINES);
+  const oldSegment = beforeLines.slice(oldStart - 1, oldEnd);
+  const newSegment = afterLines.slice(newStart - 1, newEnd);
+
+  if (oldSegment.join("\n") === newSegment.join("\n")) {
+    return undefined;
+  }
+  const lines = capDiffLines(lcsDiff(oldSegment, newSegment));
+  return lines.length > 0 ? { lines } : undefined;
+}
+
+async function diffForRun(
+  beforeText: string | undefined,
+  filePath: string,
+  run: HleditRun,
+  ctx: ExtensionContext,
+): Promise<HleditDiff | undefined> {
+  if (beforeText === undefined) {
+    return undefined;
+  }
+  const metadata = changeMetadata(run);
+  if (!metadata) {
+    return undefined;
+  }
+  const afterText = await readTextSnapshot(filePath, ctx);
+  return afterText === undefined ? undefined : buildDiff(beforeText, afterText, metadata);
 }
 
 function formatBatchResult(result: Record<string, unknown>): string {
@@ -434,12 +591,53 @@ function foldedErrorLine(text: string): string {
   return first;
 }
 
+function diffFromDetails(details: Record<string, unknown>): DiffLine[] | undefined {
+  const diff = details.diff;
+  if (!isRecord(diff) || !Array.isArray(diff.lines)) {
+    return undefined;
+  }
+  const lines = diff.lines.filter((line): line is DiffLine => {
+    if (!isRecord(line)) {
+      return false;
+    }
+    return (
+      (line.kind === "context" ||
+        line.kind === "added" ||
+        line.kind === "removed" ||
+        line.kind === "omitted") &&
+      typeof line.text === "string"
+    );
+  });
+  return lines.length > 0 ? lines : undefined;
+}
 
-function textResult(run: HleditRun, kind: HleditParams["op"] | undefined) {
+function renderDiffLines(theme: ThemeLike, lines: DiffLine[] | undefined): string[] {
+  if (!lines) {
+    return [];
+  }
+  return lines.map((line) => {
+    if (line.kind === "added") {
+      return theme.fg("toolDiffAdded" as never, `+ ${line.text}`);
+    }
+    if (line.kind === "removed") {
+      return theme.fg("toolDiffRemoved" as never, `- ${line.text}`);
+    }
+    if (line.kind === "omitted") {
+      return theme.fg("toolDiffContext" as never, line.text);
+    }
+    return theme.fg("toolDiffContext" as never, `  ${line.text}`);
+  });
+}
+
+function textResult(
+  run: HleditRun,
+  kind: HleditParams["op"] | undefined,
+  details: Record<string, unknown> = {},
+) {
   const text = formatRunText(run, kind);
   return {
     content: [{ type: "text" as const, text }],
-    details: { ok: run.exitCode === 0 },
+    details: { ok: run.exitCode === 0, ...details },
     isError: run.exitCode !== 0,
   };
 }
@@ -691,6 +889,7 @@ export default function piHleditExtension(pi: ExtensionAPI) {
       const warningIcon = stateIcon(theme, "warning");
       const infoIcon = stateIcon(theme, "info");
       const successIcon = stateIcon(theme, "success");
+      const diffLines = renderDiffLines(theme, diffFromDetails(details));
 
       if (isError) {
         return setHleditComponent(context, [`${warningIcon} ${foldedErrorLine(text)}`]);
@@ -715,6 +914,7 @@ export default function piHleditExtension(pi: ExtensionAPI) {
         const lineDelta = lineDeltaSummary(parsed);
         return setHleditComponent(context, [
           `${successIcon} Edit ok.${changed ? ` ${changed}` : ""}${lineDelta ? ` ${lineDelta}` : ""}`,
+          ...diffLines,
         ]);
       }
 
@@ -733,19 +933,19 @@ export default function piHleditExtension(pi: ExtensionAPI) {
           if (lineDelta) {
             bits.push(lineDelta.endsWith(".") ? lineDelta : `${lineDelta}.`);
           }
-          return setHleditComponent(context, [`${successIcon} ${bits.join(" ")}`]);
+          return setHleditComponent(context, [`${successIcon} ${bits.join(" ")}`, ...diffLines]);
         }
 
         const compact = lines
           .filter(Boolean)
           .map((line) => (line.endsWith(".") ? line : `${line}.`))
           .join(" ");
-        return setHleditComponent(context, [`${successIcon} ${compact || "Batch ok."}`]);
+        return setHleditComponent(context, [`${successIcon} ${compact || "Batch ok."}`, ...diffLines]);
       }
 
       const outputLines = lines.length > 0 ? [...lines] : [text || "Done."];
       outputLines[0] = `${successIcon} ${outputLines[0]}`;
-      return setHleditComponent(context, outputLines);
+      return setHleditComponent(context, [...outputLines, ...diffLines]);
     },
     parameters: HLEDIT_PARAMS_SCHEMA,
     async execute(
@@ -769,10 +969,10 @@ export default function piHleditExtension(pi: ExtensionAPI) {
         if (!request.ok) {
           return errorResult(request.error);
         }
-        return textResult(
-          await runHledit(request.args, request.stdin, ctx, signal),
-          op,
-        );
+        const beforeText = await readTextSnapshot(path, ctx);
+        const run = await runHledit(request.args, request.stdin, ctx, signal);
+        const diff = await diffForRun(beforeText, path, run, ctx);
+        return textResult(run, op, diff ? { diff } : {});
       }
 
       if (op === "batch") {
@@ -786,10 +986,10 @@ export default function piHleditExtension(pi: ExtensionAPI) {
           return errorResult(translation.error);
         }
 
-        return textResult(
-          await runHledit(["batch", path], translation.json, ctx, signal),
-          op,
-        );
+        const beforeText = await readTextSnapshot(path, ctx);
+        const run = await runHledit(["batch", path], translation.json, ctx, signal);
+        const diff = await diffForRun(beforeText, path, run, ctx);
+        return textResult(run, op, diff ? { diff } : {});
       }
 
       return errorResult("unknown op. Must be: read, edit, or batch");

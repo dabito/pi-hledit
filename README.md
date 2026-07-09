@@ -68,6 +68,7 @@ Registers a single `hledit` tool for pi agents:
 - **edit** — replace, insert, delete, or replace a range by anchor
 - **batch** — apply multiple edits atomically in one call
 - **grep** — filter lines by substring to reduce token usage
+Successful `edit` and `batch` calls render a compact UI-only diff in Pi. Model-facing tool output stays metadata-only.
 
 ## Tool parameters
 

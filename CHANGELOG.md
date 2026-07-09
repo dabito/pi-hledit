@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.0] — 2026-07-09
+
+### Added
+
+- Render UI-only diffs for successful `edit` and `batch` calls while keeping model-facing tool output compact and metadata-only.
 ## [1.0.21] — 2026-07-09
 
 ### Documentation

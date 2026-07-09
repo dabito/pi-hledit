@@ -17,7 +17,7 @@ import piHleditExtension, {
 
 type ToolResult = {
   content: Array<{ type: "text"; text: string }>;
-  details: { ok: boolean };
+  details: { ok: boolean; [key: string]: unknown };
   isError?: boolean;
 };
 
@@ -315,6 +315,72 @@ test("registered edit tool returns human-readable summary", async () => {
     );
     assert.deepEqual(editRendered?.render(80), [
       "<success>󰄬</success> Edit ok. Changed line: 1 Lines: +2 -1",
+    ]);
+  } finally {
+    if (oldBin === undefined) {
+      delete process.env.HLEDIT_BIN;
+    } else {
+      process.env.HLEDIT_BIN = oldBin;
+    }
+  }
+});
+
+test("registered edit tool renders UI-only diff", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "pi-hledit-test-"));
+  const fakeBin = join(dir, "hledit-fake.mjs");
+  const filePath = join(dir, "file.ts");
+  await writeFile(filePath, "alpha\nbeta\ngamma\n");
+  await writeFile(
+    fakeBin,
+    `#!/usr/bin/env node
+import { writeFileSync } from "node:fs";
+writeFileSync("file.ts", "alpha\\nBETA\\ngamma\\n");
+console.log(JSON.stringify({ ok: true, firstChangedLine: 2, lastChangedLine: 2, linesAdded: 1, linesDeleted: 1 }));
+`,
+    { mode: 0o755 },
+  );
+
+  const oldBin = process.env.HLEDIT_BIN;
+  process.env.HLEDIT_BIN = fakeBin;
+  try {
+    const { tools } = registerExtension();
+    const tool = tools[0];
+    assert.ok(tool?.renderResult);
+    const ctx = { cwd: dir, signal: undefined } as unknown as ExtensionContext;
+    const result = await tool.execute(
+      "call-1",
+      {
+        op: "edit",
+        path: "file.ts",
+        action: "replace",
+        anchor: "2#ABC",
+        content: "BETA",
+      },
+      undefined,
+      undefined,
+      ctx,
+    );
+
+    assert.equal(result.details.ok, true);
+    assert.ok(result.details.diff);
+    assert.doesNotMatch(result.content[0]?.text ?? "", /BETA/);
+
+    const rendered = tool.renderResult(
+      result,
+      { expanded: true, isPartial: false },
+      {
+        fg: (name, text) => `<${name}>${text}</${name}>`,
+        bold: (text) => `**${text}**`,
+      },
+      { args: { op: "edit" } },
+    );
+
+    assert.deepEqual(rendered.render(120), [
+      "<success>󰄬</success> Edit ok. Changed line: 2 Lines: +1 -1",
+      "<toolDiffContext>  alpha</toolDiffContext>",
+      "<toolDiffRemoved>- beta</toolDiffRemoved>",
+      "<toolDiffAdded>+ BETA</toolDiffAdded>",
+      "<toolDiffContext>  gamma</toolDiffContext>",
     ]);
   } finally {
     if (oldBin === undefined) {
