@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.20] — 2026-07-09
+
+### Documentation
+
+- Note that `pi-hledit@1.0.15` expects `hledit >= 1.2.4` for line delta summaries.
 ## [1.0.19] — 2026-07-09
 
 ### Fixed

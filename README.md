@@ -24,6 +24,10 @@ Demo of the underlying `hledit` CLI (not this wrapper): `hledit read` producing 
 go install github.com/dabito/hledit@latest
 ```
 
+Compatibility notes:
+
+- `pi-hledit@1.0.15` expects `hledit >= 1.2.4` for line delta summaries (`Lines: +N -M`).
+
 Make sure `hledit` is on `PATH` for pi, or set `HLEDIT_BIN`:
 
 ```bash
