@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.17] — 2026-07-09
+
+### Changed
+
+- Add preferred structured `edits` array support for batch calls while preserving the legacy JSON string form.
 ## [1.0.16] — 2026-07-08
 
 ### Changed

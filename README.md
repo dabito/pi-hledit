@@ -119,13 +119,27 @@ Replace a range:
 { "op": "edit", "path": "src/file.ts", "action": "replace-range", "anchor": "12#NKA", "end_anchor": "18#VRC", "content": "new block" }
 ```
 
-Batch edits use wrapper-friendly fields. `pi-hledit` translates them to the CLI-native `{"edits":[{"pos":"..."}]}` request before spawning `hledit batch`.
+Batch edits use wrapper-friendly fields. `pi-hledit` translates them to the CLI-native `{"edits":[{"pos":"..."}]}` request before spawning `hledit batch`. Prefer a structured `edits` array; the legacy JSON string form remains supported during transition.
 
 ```json
 {
   "op": "batch",
   "path": "src/file.ts",
-  "edits": "[{\"op\":\"replace\",\"anchor\":\"12#NKA\",\"lines\":[\"const ok = true;\"]},{\"op\":\"delete\",\"anchor\":\"20#ABC\",\"end_anchor\":\"22#CDE\",\"lines\":[]},{\"op\":\"insert\",\"anchor\":\"30#EFG\",\"lines\":[\"const added = true;\"]}]"
+  "edits": [
+    { "op": "replace", "anchor": "12#NKA", "lines": ["const ok = true;"] },
+    { "op": "delete", "anchor": "20#ABC", "end_anchor": "22#CDE", "lines": [] },
+    { "op": "insert", "anchor": "30#EFG", "lines": ["const added = true;"] }
+  ]
+}
+```
+
+Legacy string form:
+
+```json
+{
+  "op": "batch",
+  "path": "src/file.ts",
+  "edits": "[{\"op\":\"replace\",\"anchor\":\"12#NKA\",\"lines\":[\"const ok = true;\"]}]"
 }
 ```
 

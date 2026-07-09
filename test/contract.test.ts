@@ -170,6 +170,24 @@ test("translates wrapper batch edits to CLI request", () => {
     assert.equal(translation.json, JSON.stringify(translation.request));
   }
 });
+test("translates structured batch edits array to CLI request", () => {
+  const translation = translateBatchEdits([
+    { op: "replace", anchor: "1#ABC", lines: ["one"] },
+    { op: "delete", anchor: "2#CDE", end_anchor: "3#EFG", lines: [] },
+    { op: "insert", anchor: "4#GHJ", lines: ["new"] },
+  ]);
+
+  assert.equal(translation.ok, true);
+  if (translation.ok) {
+    assert.deepEqual(translation.request, {
+      edits: [
+        { op: "replace", pos: "1#ABC", lines: ["one"] },
+        { op: "delete", pos: "2#CDE", end_pos: "3#EFG", lines: [] },
+        { op: "insert", pos: "4#GHJ", lines: ["new"] },
+      ],
+    });
+  }
+});
 
 test("rejects unsupported batch insert-after", () => {
   const translation = translateBatchEdits(

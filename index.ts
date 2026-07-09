@@ -41,6 +41,23 @@ function stateIcon(theme: ThemeLike, state: VisualState): string {
   return theme.fg(visual.theme as never, visual.nerd);
 }
 
+const BATCH_EDIT_SCHEMA = Type.Object({
+  op: Type.Union([
+    Type.Literal("replace"),
+    Type.Literal("delete"),
+    Type.Literal("insert"),
+  ]),
+  anchor: Type.String({ description: "LN#HASH anchor, e.g. 12#NKA" }),
+  end_anchor: Type.Optional(
+    Type.String({ description: "End anchor for replace/delete range" }),
+  ),
+  lines: Type.Optional(
+    Type.Array(Type.String(), { description: "Replacement/inserted lines" }),
+  ),
+  after: Type.Optional(
+    Type.Boolean({ description: "Not supported for batch; use op:'edit'" }),
+  ),
+});
 const HLEDIT_PARAMS_SCHEMA = Type.Object({
   op: Type.Union([Type.Literal("read"), Type.Literal("edit"), Type.Literal("batch")], {
     description: "Operation: 'read', 'edit', or 'batch'",
@@ -81,11 +98,16 @@ const HLEDIT_PARAMS_SCHEMA = Type.Object({
   after: Type.Optional(
     Type.Boolean({ description: "For action:'insert', insert after anchor" }),
   ),
-  // Batch params — JSON array of wrapper ops. Translated to CLI-native JSON.
+  // Batch params — preferred structured array, legacy JSON string also supported.
   edits: Type.Optional(
-    Type.String({
-      description: "JSON array of batch edit ops",
-    }),
+    Type.Union([
+      Type.Array(BATCH_EDIT_SCHEMA, {
+        description: "Preferred structured batch edit ops",
+      }),
+      Type.String({
+        description: "Legacy JSON array string of batch edit ops",
+      }),
+    ]),
   ),
 });
 
@@ -326,13 +348,14 @@ function formatLineRange(first: number | undefined, last: number | undefined): s
   return start === end ? String(start) : `${start}-${end}`;
 }
 
-function batchLineRange(editsJson: unknown): string | undefined {
-  if (typeof editsJson !== "string") {
-    return undefined;
+function batchLineRange(editsInput: unknown): string | undefined {
+  let edits: unknown[] | undefined;
+  if (Array.isArray(editsInput)) {
+    edits = editsInput;
+  } else if (typeof editsInput === "string") {
+    const parsed = parseJsonObject(`{"edits":${editsInput}}`);
+    edits = Array.isArray(parsed?.edits) ? parsed.edits : undefined;
   }
-
-  const parsed = parseJsonObject(`{"edits":${editsJson}}`);
-  const edits = Array.isArray(parsed?.edits) ? parsed.edits : undefined;
   if (!edits) {
     return undefined;
   }
@@ -486,20 +509,24 @@ export function buildEditRequest(params: HleditParams):
   return { ok: true, args: ["replace", params.path, anchor, "-"], stdin: content };
 }
 
-export function translateBatchEdits(editsJson: string): BatchTranslationResult {
+export function translateBatchEdits(editsInput: unknown): BatchTranslationResult {
   let parsed: unknown;
-  try {
-    parsed = JSON.parse(editsJson) as unknown;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return {
-      ok: false,
-      error: `invalid JSON in edits param: ${message}. Escape control characters: use \\t for tabs, \\n for newlines. Each line in the 'lines' array must be a separate string element. Or use op:'edit' for single changes.`,
-    };
+  if (typeof editsInput === "string") {
+    try {
+      parsed = JSON.parse(editsInput) as unknown;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        ok: false,
+        error: `invalid JSON in legacy edits string: ${message}. Prefer structured edits array. If using a JSON string, Escape control characters: use \\t for tabs, \\n for newlines. Each line in the 'lines' array must be a separate string element. Or use op:'edit' for single changes.`,
+      };
+    }
+  } else {
+    parsed = editsInput;
   }
 
   if (!Array.isArray(parsed)) {
-    return { ok: false, error: "edits must be a JSON array" };
+    return { ok: false, error: "edits must be an array or legacy JSON array string" };
   }
 
   const edits: CliBatchEdit[] = [];
@@ -582,7 +609,7 @@ export default function piHleditExtension(pi: ExtensionAPI) {
       "ALWAYS use hledit instead of the built-in edit tool. Hash anchors detect stale context; text matching does not.",
       "Workflow: hledit read → get anchors → hledit edit (single) or hledit batch (multiple).",
       "Use op:'edit' with action:'replace'|'insert'|'delete'|'replace-range'. For insert-before: action:'insert'. For insert-after: action:'insert', after:true.",
-      "For op:'batch', pass edits as a JSON array using anchor/end_anchor; the wrapper translates to the CLI batch request.",
+      "For op:'batch', prefer edits as a structured array of objects using anchor/end_anchor; legacy JSON string is still supported.",
       "If edit returns stale, re-read the file to get fresh anchors before retrying.",
       "Use grep param to filter lines and reduce token usage: {op:'read', path, grep:'func '}",
     ],
