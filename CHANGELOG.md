@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.16] — 2026-07-08
+
+### Changed
+
+- Update docs and schema examples to use `hledit` 1.3.0-style 3-character anchors.
 ## [1.0.15] — 2026-07-07
 
 ### Changed

@@ -70,7 +70,7 @@ const HLEDIT_PARAMS_SCHEMA = Type.Object({
     ),
   ),
   anchor: Type.Optional(
-    Type.String({ description: "LN#HASH anchor, e.g. 12#NK" }),
+    Type.String({ description: "LN#HASH anchor, e.g. 12#NKA" }),
   ),
   end_anchor: Type.Optional(
     Type.String({ description: "End anchor for replace-range/delete range" }),
