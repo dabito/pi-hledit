@@ -1,6 +1,6 @@
 {
   "name": "pi-hledit",
-  "version": "1.0.18",
+  "version": "1.0.19",
   "description": "Pi wrapper for hledit hash-anchored file edits. Rejects stale writes before they happen for AI coding agents.",
   "type": "module",
   "main": "index.ts",

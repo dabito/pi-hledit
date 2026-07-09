@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.19] — 2026-07-09
+
+### Fixed
+
+- Expand literal tabs in TUI-rendered lines before truncation to avoid unpainted gaps in Pi tool backgrounds for wide tab-heavy source lines.
 ## [1.0.18] — 2026-07-09
 
 ### Changed

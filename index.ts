@@ -308,9 +308,10 @@ function formatRunText(
 }
 
 // HleditComponent renders pre-styled lines with ANSI-safe width truncation.
-// Uses pi-tui's truncateToWidth (tabs, ANSI, wide/emoji graphemes) so source
-// tabs never cause "Rendered line exceeds terminal width" crashes. Caches by
-// width and reuses via context.lastComponent per the Pi CachedComponent pattern.
+// Literal tabs render as terminal jumps and can leave unpainted gaps inside Pi's
+// tool box background, so expand them for display before truncating. Model-facing
+// tool content and file bytes stay unchanged. Caches by width and reuses via
+// context.lastComponent per the Pi CachedComponent pattern.
 class HleditComponent implements Component {
   private lines: string[] = [];
   private cachedWidth?: number;
@@ -330,7 +331,9 @@ class HleditComponent implements Component {
     if (this.cachedOutput && this.cachedWidth === width) {
       return this.cachedOutput;
     }
-    this.cachedOutput = this.lines.map((line) => truncateToWidth(line, width, "…"));
+    this.cachedOutput = this.lines.map((line) =>
+      truncateToWidth(line.replace(/\t/g, "   "), width, "…"),
+    );
     this.cachedWidth = width;
     return this.cachedOutput;
   }
