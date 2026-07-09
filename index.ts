@@ -4,7 +4,7 @@ import type {
   ExtensionCommandContext,
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
-import { truncateToWidth } from "@earendil-works/pi-tui";
+import { truncateToWidth, type Component } from "@earendil-works/pi-tui";
 import { spawn } from "node:child_process";
 import { Type, type Static } from "typebox";
 
@@ -307,28 +307,53 @@ function formatRunText(
   return text;
 }
 
-type RenderComponent = {
-  render(width: number): string[];
-  invalidate(): void;
-};
+// HleditComponent renders pre-styled lines with ANSI-safe width truncation.
+// Uses pi-tui's truncateToWidth (tabs, ANSI, wide/emoji graphemes) so source
+// tabs never cause "Rendered line exceeds terminal width" crashes. Caches by
+// width and reuses via context.lastComponent per the Pi CachedComponent pattern.
+class HleditComponent implements Component {
+  private lines: string[] = [];
+  private cachedWidth?: number;
+  private cachedOutput?: string[];
 
-// Delegates to pi-tui's own width measurement (tabs, ANSI, wide/emoji
-// graphemes) instead of a local reimplementation. hledit read output embeds
-// raw source tabs and this component's output is what pi-tui re-measures
-// when it renders, so anything short of the real implementation can drift
-// and let an over-wide line through (see pi-crash.log: "Rendered line
-// exceeds terminal width" — the bug this replaced).
-function truncateLine(line: string, width: number): string {
-  return truncateToWidth(line, width, "…");
+  constructor(lines: string[] = []) {
+    this.lines = lines;
+  }
+
+  setLines(lines: string[]): void {
+    this.lines = lines;
+    this.cachedWidth = undefined;
+    this.cachedOutput = undefined;
+  }
+
+  render(width: number): string[] {
+    if (this.cachedOutput && this.cachedWidth === width) {
+      return this.cachedOutput;
+    }
+    this.cachedOutput = this.lines.map((line) => truncateToWidth(line, width, "…"));
+    this.cachedWidth = width;
+    return this.cachedOutput;
+  }
+
+  invalidate(): void {
+    this.cachedWidth = undefined;
+    this.cachedOutput = undefined;
+  }
 }
 
-function makeComponent(lines: string[]): RenderComponent {
-  return {
-    render(width: number) {
-      return lines.map((line) => truncateLine(line, width));
-    },
-    invalidate() {},
-  };
+function reuseHleditComponent(context: { lastComponent?: unknown }): HleditComponent {
+  return context.lastComponent instanceof HleditComponent
+    ? context.lastComponent
+    : new HleditComponent();
+}
+
+function setHleditComponent(
+  context: { lastComponent?: unknown },
+  lines: string[],
+): HleditComponent {
+  const component = reuseHleditComponent(context);
+  component.setLines(lines);
+  return component;
 }
 
 function lineFromAnchor(anchor: unknown): number | undefined {
@@ -613,7 +638,7 @@ export default function piHleditExtension(pi: ExtensionAPI) {
       "If edit returns stale, re-read the file to get fresh anchors before retrying.",
       "Use grep param to filter lines and reduce token usage: {op:'read', path, grep:'func '}",
     ],
-    renderCall(args, theme) {
+    renderCall(args, theme, context) {
       const input = isRecord(args) ? (args as Record<string, unknown>) : {};
       const op = typeof input.op === "string" ? input.op : "hledit";
       const path = typeof input.path === "string" ? input.path : undefined;
@@ -635,7 +660,7 @@ export default function piHleditExtension(pi: ExtensionAPI) {
         ? theme.fg("accent", path) + (range ? theme.fg("warning", `:${range}`) : "")
         : "";
 
-      return makeComponent([targetText ? `${title} ${targetText}` : title]);
+      return setHleditComponent(context, [targetText ? `${title} ${targetText}` : title]);
     },
     renderResult(result, _options, theme, context) {
       const input = isRecord(context.args)
@@ -665,11 +690,11 @@ export default function piHleditExtension(pi: ExtensionAPI) {
       const successIcon = stateIcon(theme, "success");
 
       if (isError) {
-        return makeComponent([`${warningIcon} ${foldedErrorLine(text)}`]);
+        return setHleditComponent(context, [`${warningIcon} ${foldedErrorLine(text)}`]);
       }
 
       if (op === "read" && lines.length > 20) {
-        return makeComponent([
+        return setHleditComponent(context, [
           `${infoIcon} Read folded: ${lines.length} lines`,
           lines[0] ?? "",
           `... (${lines.length - 2} lines) ...`,
@@ -678,14 +703,14 @@ export default function piHleditExtension(pi: ExtensionAPI) {
       }
 
       if (op === "read") {
-        return makeComponent(lines.length > 0 ? lines : ["Read ok."]);
+        return setHleditComponent(context, lines.length > 0 ? lines : ["Read ok."]);
       }
 
       const parsed = parseJsonObject(text);
       if (op === "edit" && parsed) {
         const changed = changedLineSummary(parsed);
         const lineDelta = lineDeltaSummary(parsed);
-        return makeComponent([
+        return setHleditComponent(context, [
           `${successIcon} Edit ok.${changed ? ` ${changed}` : ""}${lineDelta ? ` ${lineDelta}` : ""}`,
         ]);
       }
@@ -705,19 +730,19 @@ export default function piHleditExtension(pi: ExtensionAPI) {
           if (lineDelta) {
             bits.push(lineDelta.endsWith(".") ? lineDelta : `${lineDelta}.`);
           }
-          return makeComponent([`${successIcon} ${bits.join(" ")}`]);
+          return setHleditComponent(context, [`${successIcon} ${bits.join(" ")}`]);
         }
 
         const compact = lines
           .filter(Boolean)
           .map((line) => (line.endsWith(".") ? line : `${line}.`))
           .join(" ");
-        return makeComponent([`${successIcon} ${compact || "Batch ok."}`]);
+        return setHleditComponent(context, [`${successIcon} ${compact || "Batch ok."}`]);
       }
 
       const outputLines = lines.length > 0 ? [...lines] : [text || "Done."];
       outputLines[0] = `${successIcon} ${outputLines[0]}`;
-      return makeComponent(outputLines);
+      return setHleditComponent(context, outputLines);
     },
     parameters: HLEDIT_PARAMS_SCHEMA,
     async execute(

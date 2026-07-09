@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.18] — 2026-07-09
+
+### Changed
+
+- Replace ad-hoc render components with a cached Pi `Component` implementation using `context.lastComponent` reuse and ANSI-safe width truncation.
 ## [1.0.17] — 2026-07-09
 
 ### Changed
