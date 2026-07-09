@@ -26,7 +26,7 @@ go install github.com/dabito/hledit@latest
 
 Compatibility notes:
 
-- `pi-hledit@1.0.15` expects `hledit >= 1.2.4` for line delta summaries (`Lines: +N -M`).
+- Line delta summaries (`Lines: +N -M`) require `hledit >= 1.2.4`. Older `hledit` versions still work; they just omit the line delta summary.
 
 Make sure `hledit` is on `PATH` for pi, or set `HLEDIT_BIN`:
 

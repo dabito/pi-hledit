@@ -1,10 +1,16 @@
 # Changelog
 
+## [1.0.21] — 2026-07-09
+
+### Documentation
+
+- Clarify that `hledit >= 1.2.4` is required only for line delta summaries; older versions still work without that summary.
+
 ## [1.0.20] — 2026-07-09
 
 ### Documentation
 
-- Note that `pi-hledit@1.0.15` expects `hledit >= 1.2.4` for line delta summaries.
+- Note that line delta summaries require `hledit >= 1.2.4`; older `hledit` versions still work without that summary.
 ## [1.0.19] — 2026-07-09
 
 ### Fixed
