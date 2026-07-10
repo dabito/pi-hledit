@@ -70,6 +70,17 @@ Registers a single `hledit` tool for pi agents:
 - **grep** — filter lines by substring to reduce token usage
 Successful `edit` and `batch` calls render a compact UI-only diff in Pi. Model-facing tool output stays metadata-only.
 
+## Diff rendering config
+
+Diff rendering is UI-only and can be tuned with environment variables before starting pi:
+
+| Env var | Default | Description |
+|---|---:|---|
+| `PI_HLEDIT_DIFF_MAX_LINES` | `80` | Max rendered diff lines, including the omission marker. Minimum accepted value: `3`. |
+| `PI_HLEDIT_DIFF_CONTEXT` | `2` | Context lines around changed ranges. Minimum accepted value: `0`. |
+| `PI_HLEDIT_DIFF_MAX_CELLS` | `40000` | Max LCS comparison cells before diff body is omitted. Minimum accepted value: `1`. |
+
+Invalid values fall back to defaults.
 ## Tool parameters
 
 | Param | Ops | Description |

@@ -138,9 +138,37 @@ type ChangeMetadata = {
   linesDeleted: number;
 };
 
-const DIFF_CONTEXT_LINES = 2;
-const MAX_DIFF_LINES = 80;
-const MAX_DIFF_CELL_COUNT = 40_000;
+type DiffConfig = {
+  contextLines: number;
+  maxLines: number;
+  maxCells: number;
+};
+
+const DEFAULT_DIFF_CONTEXT_LINES = 2;
+const DEFAULT_MAX_DIFF_LINES = 80;
+const DEFAULT_MAX_DIFF_CELL_COUNT = 40_000;
+
+function readEnvInt(
+  env: NodeJS.ProcessEnv,
+  name: string,
+  fallback: number,
+  min: number,
+): number {
+  const value = env[name];
+  if (value === undefined) {
+    return fallback;
+  }
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= min ? parsed : fallback;
+}
+
+function diffConfig(env: NodeJS.ProcessEnv = process.env): DiffConfig {
+  return {
+    contextLines: readEnvInt(env, "PI_HLEDIT_DIFF_CONTEXT", DEFAULT_DIFF_CONTEXT_LINES, 0),
+    maxLines: readEnvInt(env, "PI_HLEDIT_DIFF_MAX_LINES", DEFAULT_MAX_DIFF_LINES, 3),
+    maxCells: readEnvInt(env, "PI_HLEDIT_DIFF_MAX_CELLS", DEFAULT_MAX_DIFF_CELL_COUNT, 1),
+  };
+}
 
 type CliBatchEdit = {
   op: BatchOp;
@@ -261,8 +289,8 @@ function changeMetadata(run: HleditRun): ChangeMetadata | undefined {
   return { firstChangedLine, lastChangedLine, linesAdded, linesDeleted };
 }
 
-function lcsDiff(oldLines: string[], newLines: string[]): DiffLine[] {
-  if (oldLines.length * newLines.length > MAX_DIFF_CELL_COUNT) {
+function lcsDiff(oldLines: string[], newLines: string[], config: DiffConfig): DiffLine[] {
+  if (oldLines.length * newLines.length > config.maxCells) {
     return [
       {
         kind: "omitted",
@@ -309,36 +337,42 @@ function lcsDiff(oldLines: string[], newLines: string[]): DiffLine[] {
   return diff;
 }
 
-function capDiffLines(lines: DiffLine[]): DiffLine[] {
-  if (lines.length <= MAX_DIFF_LINES) {
+function capDiffLines(lines: DiffLine[], config: DiffConfig): DiffLine[] {
+  if (lines.length <= config.maxLines) {
     return lines;
   }
-  const headCount = Math.floor(MAX_DIFF_LINES / 2);
-  const tailCount = MAX_DIFF_LINES - headCount;
+  const retainedLineCount = config.maxLines - 1;
+  const headCount = Math.floor(retainedLineCount / 2);
+  const tailCount = retainedLineCount - headCount;
   return [
     ...lines.slice(0, headCount),
-    { kind: "omitted", text: `... (${lines.length - MAX_DIFF_LINES} diff lines omitted) ...` },
+    { kind: "omitted", text: `... (${lines.length - retainedLineCount} diff lines omitted) ...` },
     ...lines.slice(lines.length - tailCount),
   ];
 }
 
-function buildDiff(beforeText: string, afterText: string, metadata: ChangeMetadata): HleditDiff | undefined {
+function buildDiff(
+  beforeText: string,
+  afterText: string,
+  metadata: ChangeMetadata,
+  config: DiffConfig = diffConfig(),
+): HleditDiff | undefined {
   const beforeLines = splitSnapshotLines(beforeText);
   const afterLines = splitSnapshotLines(afterText);
   const first = Math.max(1, metadata.firstChangedLine);
   const last = Math.max(first, metadata.lastChangedLine);
   const netLineDelta = metadata.linesAdded - metadata.linesDeleted;
-  const oldStart = Math.max(1, first - DIFF_CONTEXT_LINES);
-  const oldEnd = Math.min(beforeLines.length, last + DIFF_CONTEXT_LINES);
-  const newStart = Math.max(1, first - DIFF_CONTEXT_LINES);
-  const newEnd = Math.min(afterLines.length, Math.max(first, last + netLineDelta) + DIFF_CONTEXT_LINES);
+  const oldStart = Math.max(1, first - config.contextLines);
+  const oldEnd = Math.min(beforeLines.length, last + config.contextLines);
+  const newStart = Math.max(1, first - config.contextLines);
+  const newEnd = Math.min(afterLines.length, Math.max(first, last + netLineDelta) + config.contextLines);
   const oldSegment = beforeLines.slice(oldStart - 1, oldEnd);
   const newSegment = afterLines.slice(newStart - 1, newEnd);
 
   if (oldSegment.join("\n") === newSegment.join("\n")) {
     return undefined;
   }
-  const lines = capDiffLines(lcsDiff(oldSegment, newSegment));
+  const lines = capDiffLines(lcsDiff(oldSegment, newSegment, config), config);
   return lines.length > 0 ? { lines } : undefined;
 }
 

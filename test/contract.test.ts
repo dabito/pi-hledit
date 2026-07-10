@@ -391,6 +391,83 @@ console.log(JSON.stringify({ ok: true, firstChangedLine: 2, lastChangedLine: 2, 
   }
 });
 
+test("diff renderer honors env caps and context", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "pi-hledit-test-"));
+  const fakeBin = join(dir, "hledit-fake.mjs");
+  const filePath = join(dir, "file.ts");
+  await writeFile(filePath, "a\nb\nc\nd\ne\n");
+  await writeFile(
+    fakeBin,
+    `#!/usr/bin/env node
+import { writeFileSync } from "node:fs";
+writeFileSync("file.ts", "A\\nB\\nC\\nD\\nE\\n");
+console.log(JSON.stringify({ ok: true, firstChangedLine: 1, lastChangedLine: 5, linesAdded: 5, linesDeleted: 5 }));
+`,
+    { mode: 0o755 },
+  );
+
+  const oldBin = process.env.HLEDIT_BIN;
+  const oldMaxLines = process.env.PI_HLEDIT_DIFF_MAX_LINES;
+  const oldContext = process.env.PI_HLEDIT_DIFF_CONTEXT;
+  process.env.HLEDIT_BIN = fakeBin;
+  process.env.PI_HLEDIT_DIFF_MAX_LINES = "5";
+  process.env.PI_HLEDIT_DIFF_CONTEXT = "0";
+  try {
+    const { tools } = registerExtension();
+    const tool = tools[0];
+    assert.ok(tool?.renderResult);
+    const ctx = { cwd: dir, signal: undefined } as unknown as ExtensionContext;
+    const result = await tool.execute(
+      "call-1",
+      {
+        op: "edit",
+        path: "file.ts",
+        action: "replace-range",
+        anchor: "1#ABC",
+        end_anchor: "5#DEF",
+        content: "A\nB\nC\nD\nE",
+      },
+      undefined,
+      undefined,
+      ctx,
+    );
+
+    const rendered = tool.renderResult(
+      result,
+      { expanded: true, isPartial: false },
+      {
+        fg: (name, text) => `<${name}>${text}</${name}>`,
+        bold: (text) => `**${text}**`,
+      },
+      { args: { op: "edit" } },
+    );
+
+    assert.deepEqual(rendered.render(120), [
+      "<success>󰄬</success> Edit ok. Changed lines: 1-5 Lines: +5 -5",
+      "<toolDiffRemoved>- a</toolDiffRemoved>",
+      "<toolDiffRemoved>- b</toolDiffRemoved>",
+      "<toolDiffContext>... (6 diff lines omitted) ...</toolDiffContext>",
+      "<toolDiffAdded>+ D</toolDiffAdded>",
+      "<toolDiffAdded>+ E</toolDiffAdded>",
+    ]);
+  } finally {
+    if (oldBin === undefined) {
+      delete process.env.HLEDIT_BIN;
+    } else {
+      process.env.HLEDIT_BIN = oldBin;
+    }
+    if (oldMaxLines === undefined) {
+      delete process.env.PI_HLEDIT_DIFF_MAX_LINES;
+    } else {
+      process.env.PI_HLEDIT_DIFF_MAX_LINES = oldMaxLines;
+    }
+    if (oldContext === undefined) {
+      delete process.env.PI_HLEDIT_DIFF_CONTEXT;
+    } else {
+      process.env.PI_HLEDIT_DIFF_CONTEXT = oldContext;
+    }
+  }
+});
 test("registered read tool returns annotated lines and calls read-range", async () => {
   const dir = await mkdtemp(join(tmpdir(), "pi-hledit-test-"));
   const fakeBin = join(dir, "hledit-fake.mjs");

@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.1] — 2026-07-09
+
+### Added
+
+- Add `PI_HLEDIT_DIFF_MAX_LINES`, `PI_HLEDIT_DIFF_CONTEXT`, and `PI_HLEDIT_DIFF_MAX_CELLS` environment variables for TUI diff rendering.
 ## [1.1.0] — 2026-07-09
 
 ### Added
