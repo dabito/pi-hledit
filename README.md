@@ -6,9 +6,13 @@ Hashline edit support for Pi: `hledit` hash-anchored file editing tools for AI c
 
 ## Demo
 
+![pi-hledit in action](https://raw.githubusercontent.com/dabito/pi-hledit/main/docs/demo/pi-hledit.png)
+
+Animated stale-edit demo (underlying `hledit` CLI):
+
 ![hledit stale-edit demo](https://raw.githubusercontent.com/dabito/hledit/main/docs/demo/hledit.gif)
 
-Demo of the underlying `hledit` CLI (not this wrapper): `hledit read` producing `LN#ANCHOR` references, a stale edit rejected with `{"ok":false,"error":"stale"}`, then a successful edit after re-reading a fresh anchor. Source: [`hledit`'s README](https://github.com/dabito/hledit#demo).
+The GIF shows `hledit read` producing `LN#ANCHOR` references, a stale edit rejected with `{"ok":false,"error":"stale"}`, then a successful edit after re-reading a fresh anchor. Source: [`hledit`'s README](https://github.com/dabito/hledit#demo).
 
 ## Related packages
 
