@@ -362,7 +362,7 @@ console.log(JSON.stringify({ ok: true, firstChangedLine: 2, lastChangedLine: 2, 
     );
 
     assert.equal(result.details.ok, true);
-    assert.ok(result.details.diff);
+    assert.equal(result.details.diff, " 1 alpha\n-2 beta\n+2 BETA\n 3 gamma");
     assert.doesNotMatch(result.content[0]?.text ?? "", /BETA/);
 
     const rendered = tool.renderResult(
@@ -377,10 +377,10 @@ console.log(JSON.stringify({ ok: true, firstChangedLine: 2, lastChangedLine: 2, 
 
     assert.deepEqual(rendered.render(120), [
       "<success>󰄬</success> Edit ok. Changed line: 2 Lines: +1 -1",
-      "<toolDiffContext>  alpha</toolDiffContext>",
-      "<toolDiffRemoved>- beta</toolDiffRemoved>",
-      "<toolDiffAdded>+ BETA</toolDiffAdded>",
-      "<toolDiffContext>  gamma</toolDiffContext>",
+      " 1 alpha",
+      "-2 beta",
+      "+2 BETA",
+      " 3 gamma",
     ]);
   } finally {
     if (oldBin === undefined) {
@@ -444,11 +444,11 @@ console.log(JSON.stringify({ ok: true, firstChangedLine: 1, lastChangedLine: 5, 
 
     assert.deepEqual(rendered.render(120), [
       "<success>󰄬</success> Edit ok. Changed lines: 1-5 Lines: +5 -5",
-      "<toolDiffRemoved>- a</toolDiffRemoved>",
-      "<toolDiffRemoved>- b</toolDiffRemoved>",
-      "<toolDiffContext>... (6 diff lines omitted) ...</toolDiffContext>",
-      "<toolDiffAdded>+ D</toolDiffAdded>",
-      "<toolDiffAdded>+ E</toolDiffAdded>",
+      "-1 a",
+      "-2 b",
+      "... (6 diff lines omitted) ...",
+      "+4 D",
+      "+5 E",
     ]);
   } finally {
     if (oldBin === undefined) {

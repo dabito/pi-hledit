@@ -68,7 +68,7 @@ Registers a single `hledit` tool for pi agents:
 - **edit** — replace, insert, delete, or replace a range by anchor
 - **batch** — apply multiple edits atomically in one call
 - **grep** — filter lines by substring to reduce token usage
-Successful `edit` and `batch` calls render a compact UI-only diff in Pi. Model-facing tool output stays metadata-only.
+Successful `edit` and `batch` calls render a compact UI-only diff through Pi's native `renderDiff` UI. Model-facing tool output stays metadata-only.
 
 ## Diff rendering config
 
@@ -81,6 +81,7 @@ Diff rendering is UI-only and can be tuned with environment variables before sta
 | `PI_HLEDIT_DIFF_MAX_CELLS` | `40000` | Max LCS comparison cells before diff body is omitted. Minimum accepted value: `1`. |
 
 Invalid values fall back to defaults.
+
 ## Tool parameters
 
 | Param | Ops | Description |

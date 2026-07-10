@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.2] — 2026-07-09
+
+### Changed
+
+- Render `hledit` edit/batch diffs through Pi's native `renderDiff` UI while preserving snapshot/cap/env behavior.
 ## [1.1.1] — 2026-07-09
 
 ### Added

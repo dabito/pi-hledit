@@ -1,8 +1,9 @@
-import type {
-  AgentToolUpdateCallback,
-  ExtensionAPI,
-  ExtensionCommandContext,
-  ExtensionContext,
+import {
+  renderDiff,
+  type AgentToolUpdateCallback,
+  type ExtensionAPI,
+  type ExtensionCommandContext,
+  type ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, type Component } from "@earendil-works/pi-tui";
 import { readFile } from "node:fs/promises";
@@ -125,10 +126,11 @@ type DiffLineKind = "context" | "added" | "removed" | "omitted";
 type DiffLine = {
   kind: DiffLineKind;
   text: string;
+  lineNumber?: number;
 };
 
-type HleditDiff = {
-  lines: DiffLine[];
+type HleditDiffMetadata = {
+  diff: string;
 };
 
 type ChangeMetadata = {
@@ -289,7 +291,13 @@ function changeMetadata(run: HleditRun): ChangeMetadata | undefined {
   return { firstChangedLine, lastChangedLine, linesAdded, linesDeleted };
 }
 
-function lcsDiff(oldLines: string[], newLines: string[], config: DiffConfig): DiffLine[] {
+function lcsDiff(
+  oldLines: string[],
+  newLines: string[],
+  oldStartLine: number,
+  newStartLine: number,
+  config: DiffConfig,
+): DiffLine[] {
   if (oldLines.length * newLines.length > config.maxCells) {
     return [
       {
@@ -313,26 +321,34 @@ function lcsDiff(oldLines: string[], newLines: string[], config: DiffConfig): Di
   const diff: DiffLine[] = [];
   let i = 0;
   let j = 0;
+  let oldLine = oldStartLine;
+  let newLine = newStartLine;
   while (i < oldLines.length && j < newLines.length) {
     if (oldLines[i] === newLines[j]) {
-      diff.push({ kind: "context", text: oldLines[i]! });
+      diff.push({ kind: "context", text: oldLines[i]!, lineNumber: oldLine });
       i++;
       j++;
+      oldLine++;
+      newLine++;
     } else if (dp[i + 1]![j]! >= dp[i]![j + 1]!) {
-      diff.push({ kind: "removed", text: oldLines[i]! });
+      diff.push({ kind: "removed", text: oldLines[i]!, lineNumber: oldLine });
       i++;
+      oldLine++;
     } else {
-      diff.push({ kind: "added", text: newLines[j]! });
+      diff.push({ kind: "added", text: newLines[j]!, lineNumber: newLine });
       j++;
+      newLine++;
     }
   }
   while (i < oldLines.length) {
-    diff.push({ kind: "removed", text: oldLines[i]! });
+    diff.push({ kind: "removed", text: oldLines[i]!, lineNumber: oldLine });
     i++;
+    oldLine++;
   }
   while (j < newLines.length) {
-    diff.push({ kind: "added", text: newLines[j]! });
+    diff.push({ kind: "added", text: newLines[j]!, lineNumber: newLine });
     j++;
+    newLine++;
   }
   return diff;
 }
@@ -351,12 +367,27 @@ function capDiffLines(lines: DiffLine[], config: DiffConfig): DiffLine[] {
   ];
 }
 
+function formatDisplayDiff(lines: DiffLine[], lineNumWidth: number): string {
+  return lines
+    .map((line) => {
+      if (line.kind === "omitted") {
+        return line.text;
+      }
+      const lineNumber = String(line.lineNumber ?? "").padStart(lineNumWidth, " ");
+      const prefix = line.kind === "added" ? "+" : line.kind === "removed" ? "-" : " ";
+      return `${prefix}${lineNumber} ${line.text}`;
+    })
+    .join("\n");
+}
+
+
 function buildDiff(
+  filePath: string,
   beforeText: string,
   afterText: string,
   metadata: ChangeMetadata,
   config: DiffConfig = diffConfig(),
-): HleditDiff | undefined {
+): HleditDiffMetadata | undefined {
   const beforeLines = splitSnapshotLines(beforeText);
   const afterLines = splitSnapshotLines(afterText);
   const first = Math.max(1, metadata.firstChangedLine);
@@ -372,8 +403,13 @@ function buildDiff(
   if (oldSegment.join("\n") === newSegment.join("\n")) {
     return undefined;
   }
-  const lines = capDiffLines(lcsDiff(oldSegment, newSegment, config), config);
-  return lines.length > 0 ? { lines } : undefined;
+  const lineNumWidth = String(Math.max(oldEnd, newEnd, 1)).length;
+  const lines = capDiffLines(
+    lcsDiff(oldSegment, newSegment, oldStart, newStart, config),
+    config,
+  );
+  const diff = formatDisplayDiff(lines, lineNumWidth);
+  return diff ? { diff } : undefined;
 }
 
 async function diffForRun(
@@ -381,7 +417,7 @@ async function diffForRun(
   filePath: string,
   run: HleditRun,
   ctx: ExtensionContext,
-): Promise<HleditDiff | undefined> {
+): Promise<HleditDiffMetadata | undefined> {
   if (beforeText === undefined) {
     return undefined;
   }
@@ -390,7 +426,7 @@ async function diffForRun(
     return undefined;
   }
   const afterText = await readTextSnapshot(filePath, ctx);
-  return afterText === undefined ? undefined : buildDiff(beforeText, afterText, metadata);
+  return afterText === undefined ? undefined : buildDiff(filePath, beforeText, afterText, metadata);
 }
 
 function formatBatchResult(result: Record<string, unknown>): string {
@@ -625,42 +661,24 @@ function foldedErrorLine(text: string): string {
   return first;
 }
 
-function diffFromDetails(details: Record<string, unknown>): DiffLine[] | undefined {
-  const diff = details.diff;
-  if (!isRecord(diff) || !Array.isArray(diff.lines)) {
-    return undefined;
-  }
-  const lines = diff.lines.filter((line): line is DiffLine => {
-    if (!isRecord(line)) {
-      return false;
-    }
-    return (
-      (line.kind === "context" ||
-        line.kind === "added" ||
-        line.kind === "removed" ||
-        line.kind === "omitted") &&
-      typeof line.text === "string"
-    );
-  });
-  return lines.length > 0 ? lines : undefined;
+function diffTextFromDetails(details: Record<string, unknown>): string | undefined {
+  return typeof details.diff === "string" && details.diff.length > 0
+    ? details.diff
+    : undefined;
 }
 
-function renderDiffLines(theme: ThemeLike, lines: DiffLine[] | undefined): string[] {
-  if (!lines) {
+function renderNativeDiffLines(diffText: string | undefined, filePath: string | undefined): string[] {
+  if (!diffText) {
     return [];
   }
-  return lines.map((line) => {
-    if (line.kind === "added") {
-      return theme.fg("toolDiffAdded" as never, `+ ${line.text}`);
-    }
-    if (line.kind === "removed") {
-      return theme.fg("toolDiffRemoved" as never, `- ${line.text}`);
-    }
-    if (line.kind === "omitted") {
-      return theme.fg("toolDiffContext" as never, line.text);
-    }
-    return theme.fg("toolDiffContext" as never, `  ${line.text}`);
-  });
+  try {
+    return renderDiff(diffText, { filePath }).split("\n");
+  } catch {
+    // Contract tests run without Pi's interactive theme initialized. In real Pi,
+    // renderDiff uses the active global theme. Keep a raw fallback so tests and
+    // non-interactive harnesses can still inspect the diff shape.
+    return diffText.split("\n");
+  }
 }
 
 function textResult(
@@ -923,7 +941,10 @@ export default function piHleditExtension(pi: ExtensionAPI) {
       const warningIcon = stateIcon(theme, "warning");
       const infoIcon = stateIcon(theme, "info");
       const successIcon = stateIcon(theme, "success");
-      const diffLines = renderDiffLines(theme, diffFromDetails(details));
+      const diffLines = renderNativeDiffLines(
+        diffTextFromDetails(details),
+        typeof input.path === "string" ? input.path : undefined,
+      );
 
       if (isError) {
         return setHleditComponent(context, [`${warningIcon} ${foldedErrorLine(text)}`]);
@@ -1006,7 +1027,7 @@ export default function piHleditExtension(pi: ExtensionAPI) {
         const beforeText = await readTextSnapshot(path, ctx);
         const run = await runHledit(request.args, request.stdin, ctx, signal);
         const diff = await diffForRun(beforeText, path, run, ctx);
-        return textResult(run, op, diff ? { diff } : {});
+        return textResult(run, op, diff ?? {});
       }
 
       if (op === "batch") {
@@ -1023,7 +1044,7 @@ export default function piHleditExtension(pi: ExtensionAPI) {
         const beforeText = await readTextSnapshot(path, ctx);
         const run = await runHledit(["batch", path], translation.json, ctx, signal);
         const diff = await diffForRun(beforeText, path, run, ctx);
-        return textResult(run, op, diff ? { diff } : {});
+        return textResult(run, op, diff ?? {});
       }
 
       return errorResult("unknown op. Must be: read, edit, or batch");
