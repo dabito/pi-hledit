@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.4] — 2026-07-09
+
+### Documentation
+
+- Add `pi.image` gallery metadata so the demo screenshot appears on pi.dev package listings.
 ## [1.1.3] — 2026-07-09
 
 ### Documentation
