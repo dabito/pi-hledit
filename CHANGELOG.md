@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.3] — 2026-07-09
+
+### Documentation
+
+- Include the Pi native diff demo screenshot in the published package.
 ## [1.1.2] — 2026-07-09
 
 ### Changed
