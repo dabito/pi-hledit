@@ -74,6 +74,12 @@ const HLEDIT_PARAMS_SCHEMA = Type.Object({
   grep: Type.Optional(
     Type.String({ description: "Filter lines by substring" }),
   ),
+  context: Type.Optional(
+    Type.Integer({
+      minimum: 0,
+      description: "Surrounding lines for grep results; default 2 when grep is set, use 0 for match-only",
+    }),
+  ),
   // Edit params
   action: Type.Optional(
     Type.Union(
@@ -146,6 +152,7 @@ type DiffConfig = {
   maxCells: number;
 };
 
+const DEFAULT_GREP_CONTEXT_LINES = 2;
 const DEFAULT_DIFF_CONTEXT_LINES = 2;
 const DEFAULT_MAX_DIFF_LINES = 80;
 const DEFAULT_MAX_DIFF_CELL_COUNT = 40_000;
@@ -709,6 +716,10 @@ function toNum(v: number | undefined): number | undefined {
   return v !== undefined && v >= 0 ? v : undefined;
 }
 
+function toNonNegativeInt(v: number | undefined): number | undefined {
+  return v !== undefined && Number.isInteger(v) && v >= 0 ? v : undefined;
+}
+
 function hasAnchorShape(anchor: string): boolean {
   return /^\d+#[A-Za-z0-9]+$/.test(anchor);
 }
@@ -716,6 +727,7 @@ function hasAnchorShape(anchor: string): boolean {
 export function buildReadArgs(params: HleditParams): string[] {
   const offset = toNum(params.offset);
   const limit = toNum(params.limit);
+  const contextLines = toNonNegativeInt(params.context);
   const grep = params.grep || undefined;
 
   const args = [
@@ -728,7 +740,7 @@ export function buildReadArgs(params: HleditParams): string[] {
   ];
 
   if (grep) {
-    args.push("--grep", grep);
+    args.push("--grep", grep, "--context", String(contextLines ?? DEFAULT_GREP_CONTEXT_LINES));
   }
 
   return args;
@@ -900,7 +912,7 @@ export default function piHleditExtension(pi: ExtensionAPI) {
       "Use op:'edit' with action:'replace'|'insert'|'delete'|'replace-range'. For insert-before: action:'insert'. For insert-after: action:'insert', after:true.",
       "For op:'batch', prefer edits as a structured array of objects using anchor/end_anchor; legacy JSON string is still supported.",
       "If edit returns stale, re-read the file to get fresh anchors before retrying.",
-      "Use grep param to filter lines and reduce token usage: {op:'read', path, grep:'func '}",
+      "Use grep with small context to reduce token usage while keeping edit targets understandable: {op:'read', path, grep:'func ', context:2}",
     ],
     renderCall(args, theme, context) {
       const input = isRecord(args) ? (args as Record<string, unknown>) : {};

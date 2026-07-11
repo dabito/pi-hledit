@@ -100,6 +100,7 @@ Run `/hledit-status` inside pi to see the effective diff config after environmen
 | `offset` | read | 1-indexed start line for ranged reads; default `1` when ranged |
 | `limit` | read | Max lines for ranged reads; default `2000` when ranged |
 | `grep` | read | Substring filter for read output; still line-capped, not byte-capped |
+| `context` | read | Surrounding lines around each grep match; defaults to `2` when `grep` is set, use `0` for match-only output |
 | `action` | edit | `replace`, `insert`, `delete`, or `replace-range`; default `replace` unless `end_anchor`/legacy `after` imply otherwise |
 | `anchor` | edit/batch | Start LN#HASH anchor from latest `read` |
 | `end_anchor` | edit/batch | End LN#HASH anchor for range replace/delete |
@@ -107,7 +108,7 @@ Run `/hledit-status` inside pi to see the effective diff config after environmen
 | `after` | edit | With `action:'insert'`, insert after anchor; omitted means insert before |
 | `edits` | batch | JSON array of batch edits using `op`, `anchor`, optional `end_anchor`, and `lines` |
 
-`hledit` CLI has a `--context` option for some reads. This wrapper currently exposes `offset`, `limit`, and `grep`, not `--context`.
+`hledit` CLI has a `--context` option for contextual grep. This wrapper exposes it as `context`; omit it for the small default (`2`) or set `0` for match-only output.
 
 ## Examples
 
@@ -115,6 +116,18 @@ Read anchors:
 
 ```json
 { "op": "read", "path": "src/file.ts", "offset": 1, "limit": 80 }
+```
+
+Contextual grep with small default window:
+
+```json
+{ "op": "read", "path": "src/file.ts", "grep": "validateToken" }
+```
+
+Match-only grep:
+
+```json
+{ "op": "read", "path": "src/file.ts", "grep": "validateToken", "context": 0 }
 ```
 
 Replace one line:

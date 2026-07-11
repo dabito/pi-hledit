@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.6] — 2026-07-11
+
+### Added
+
+- Add `context` read parameter for contextual grep; defaults to `2` when `grep` is set, with `context:0` preserving match-only output.
+- Add roadmap tracking for anchored repo-wide find, peek/read-around-anchor, match controls, and variable/adaptive hash config.
+
 ## [1.1.5] — 2026-07-11
 
 ### Added

@@ -123,7 +123,7 @@ test("formats diff config status with defaults and env overrides", () => {
       PI_HLEDIT_DIFF_CONTEXT: "0",
       PI_HLEDIT_DIFF_MAX_CELLS: "99",
     }),
-    /PI_HLEDIT_DIFF_MAX_LINES=12\n  PI_HLEDIT_DIFF_CONTEXT=0\n  PI_HLEDIT_DIFF_MAX_CELLS=99/,
+    /PI_HLEDIT_DIFF_MAX_LINES=12\n {2}PI_HLEDIT_DIFF_CONTEXT=0\n {2}PI_HLEDIT_DIFF_MAX_CELLS=99/,
   );
 });
 
@@ -145,6 +145,40 @@ test("builds read args with default range limit", () => {
     "2000",
     "--grep",
     "func",
+    "--context",
+    "2",
+  ]);
+  assert.deepEqual(buildReadArgs({ op: "read", path: "a.ts", grep: "func", context: 0 }), [
+    "read-range",
+    "a.ts",
+    "--offset",
+    "1",
+    "--limit",
+    "2000",
+    "--grep",
+    "func",
+    "--context",
+    "0",
+  ]);
+  assert.deepEqual(buildReadArgs({ op: "read", path: "a.ts", context: 5 }), [
+    "read-range",
+    "a.ts",
+    "--offset",
+    "1",
+    "--limit",
+    "2000",
+  ]);
+  assert.deepEqual(buildReadArgs({ op: "read", path: "a.ts", grep: "func", context: 2.5 }), [
+    "read-range",
+    "a.ts",
+    "--offset",
+    "1",
+    "--limit",
+    "2000",
+    "--grep",
+    "func",
+    "--context",
+    "2",
   ]);
 });
 
