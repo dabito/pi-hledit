@@ -1,4 +1,7 @@
 # pi-hledit
+[![npm version](https://img.shields.io/npm/v/pi-hledit.svg)](https://www.npmjs.com/package/pi-hledit)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Pi package](https://img.shields.io/badge/Pi-package-blue)](https://pi.dev/packages/pi-hledit)
 
 Hashline edit support for Pi: `hledit` hash-anchored file editing tools for AI coding agents.
 
