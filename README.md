@@ -65,7 +65,7 @@ pi install git:github.com/dabito/pi-hledit
 /hledit-status
 ```
 
-By default the extension runs `hledit` from `PATH`. If pi cannot find it, set `HLEDIT_BIN` before starting pi.
+By default the extension runs `hledit` from `PATH`. If pi cannot find it, set `HLEDIT_BIN` before starting pi. `/hledit-status` also shows the active diff rendering config.
 
 ## What it does
 
@@ -88,6 +88,8 @@ Diff rendering is UI-only and can be tuned with environment variables before sta
 | `PI_HLEDIT_DIFF_MAX_CELLS` | `40000` | Max LCS comparison cells before diff body is omitted. Minimum accepted value: `1`. |
 
 Invalid values fall back to defaults.
+
+Run `/hledit-status` inside pi to see the effective diff config after environment defaults/overrides are applied.
 
 ## Tool parameters
 

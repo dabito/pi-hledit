@@ -11,6 +11,7 @@ import type {
 import piHleditExtension, {
   buildEditRequest,
   buildReadArgs,
+  formatDiffConfigStatus,
   resolveHleditBin,
   translateBatchEdits,
 } from "../index.js";
@@ -103,6 +104,27 @@ test("schema exposes finite op and action unions", () => {
 test("resolves hledit from PATH by default", () => {
   assert.equal(resolveHleditBin({}), "hledit");
   assert.equal(resolveHleditBin({ HLEDIT_BIN: "/tmp/hledit" }), "/tmp/hledit");
+});
+
+test("formats diff config status with defaults and env overrides", () => {
+  assert.equal(
+    formatDiffConfigStatus({}),
+    [
+      "Diff renderer: Pi native renderDiff",
+      "Diff config:",
+      "  PI_HLEDIT_DIFF_MAX_LINES=80",
+      "  PI_HLEDIT_DIFF_CONTEXT=2",
+      "  PI_HLEDIT_DIFF_MAX_CELLS=40000",
+    ].join("\n"),
+  );
+  assert.match(
+    formatDiffConfigStatus({
+      PI_HLEDIT_DIFF_MAX_LINES: "12",
+      PI_HLEDIT_DIFF_CONTEXT: "0",
+      PI_HLEDIT_DIFF_MAX_CELLS: "99",
+    }),
+    /PI_HLEDIT_DIFF_MAX_LINES=12\n  PI_HLEDIT_DIFF_CONTEXT=0\n  PI_HLEDIT_DIFF_MAX_CELLS=99/,
+  );
 });
 
 test("builds read args with default range limit", () => {

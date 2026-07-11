@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.5] — 2026-07-11
+
+### Added
+
+- Show active native diff renderer settings in `/hledit-status`.
 ## [1.1.4] — 2026-07-09
 
 ### Documentation

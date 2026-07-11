@@ -172,6 +172,17 @@ function diffConfig(env: NodeJS.ProcessEnv = process.env): DiffConfig {
   };
 }
 
+export function formatDiffConfigStatus(env: NodeJS.ProcessEnv = process.env): string {
+  const config = diffConfig(env);
+  return [
+    "Diff renderer: Pi native renderDiff",
+    "Diff config:",
+    `  PI_HLEDIT_DIFF_MAX_LINES=${config.maxLines}`,
+    `  PI_HLEDIT_DIFF_CONTEXT=${config.contextLines}`,
+    `  PI_HLEDIT_DIFF_MAX_CELLS=${config.maxCells}`,
+  ].join("\n");
+}
+
 type CliBatchEdit = {
   op: BatchOp;
   pos: string;
@@ -1058,7 +1069,7 @@ export default function piHleditExtension(pi: ExtensionAPI) {
       const run = await runHledit(["help"], undefined, ctx);
       const bin = resolveHleditBin();
       if (run.exitCode === 0) {
-        ctx.ui.notify(`hledit ready: ${bin}`, "info");
+        ctx.ui.notify(`hledit ready: ${bin}\n\n${formatDiffConfigStatus()}`, "info");
       } else {
         ctx.ui.notify(`hledit failed: ${bin}\n\n${HLEDIT_INSTALL_HINT}`, "error");
       }
