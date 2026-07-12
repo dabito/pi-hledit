@@ -201,7 +201,7 @@ Traditional text-matching edits fail silently when the file changes between read
 
 ## Limitations
 
-- This wrapper does not expose `hledit`'s `--context` flag; only `offset`, `limit`, and `grep` are exposed for reads.
+- This wrapper exposes `hledit`'s `--context` flag as `context` for grep reads; omit it for default `2`, or set `0` for match-only output.
 - Batch edits are applied by a single `hledit batch` invocation (validate-all-then-write), not by this wrapper independently — atomicity guarantees come from the CLI, not from pi-hledit's own code.
 - No sandboxing beyond what `hledit` itself does: paths are resolved relative to pi's cwd and passed through to the CLI as-is.
 

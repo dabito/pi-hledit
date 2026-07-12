@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.7] — 2026-07-11
+
+### Documentation
+
+- Fix stale limitations note now that `context` is exposed for grep reads.
+
 ## [1.1.6] — 2026-07-11
 
 ### Added
